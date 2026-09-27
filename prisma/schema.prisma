@@ -1,0 +1,263 @@
+// Skema data MotionPro. Lihat PRD bagian "Model data dan status proyek".
+// Belum ada model User: Fase 0–3 berjalan untuk satu pengguna tanpa login.
+// User dan kepemilikan data ditambahkan di Fase 4 bersama login Google.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProjectStatus {
+  DRAFT
+  RESEARCH_READY
+  SCRIPT_READY
+  ASSETS_READY
+  AUDIO_READY
+  RENDERING
+  RENDERED
+  PUBLISHED
+  FAILED
+}
+
+enum ProjectMode {
+  EDITOR
+  AUTO
+}
+
+enum AspectRatio {
+  LANDSCAPE_16_9
+  PORTRAIT_9_16
+}
+
+enum JobKind {
+  PING
+  RESEARCH
+  SCRIPT
+  ASSETS
+  AUDIO
+  RENDER
+  PUBLISH
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum SourceOrigin {
+  SEARCH
+  USER
+}
+
+enum AssetKind {
+  IMAGE
+  VIDEO
+  MUSIC
+  SFX
+}
+
+enum UploadStatus {
+  QUEUED
+  UPLOADING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum Privacy {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+model Project {
+  id            String        @id @default(cuid())
+  topic         String
+  targetMinutes Int           @default(10)
+  language      String        @default("id")
+  tone          String        @default("dokumenter")
+  templateId    String        @default("sejarah-peta")
+  voiceId       String?
+  aspectRatio   AspectRatio   @default(LANDSCAPE_16_9)
+  mode          ProjectMode   @default(EDITOR)
+  status        ProjectStatus @default(DRAFT)
+  // Tahap terakhir yang gagal, diisi bersama status FAILED.
+  failedStage   JobKind?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  research ResearchBrief?
+  scenes   Scene[]
+  jobs     JobRun[]
+  videos   Video[]
+}
+
+model ResearchBrief {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Sub-pertanyaan riset, fakta kunci, timeline, dan calon hook (JSON dari Gemini).
+  questions Json     @default("[]")
+  facts     Json     @default("[]")
+  timeline  Json     @default("[]")
+  hooks     Json     @default("[]")
+  // Isi brief yang bisa diedit pengguna.
+  markdown  String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sources Source[]
+}
+
+model Source {
+  id         String        @id @default(cuid())
+  briefId    String
+  brief      ResearchBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  title      String
+  url        String
+  origin     SourceOrigin  @default(SEARCH)
+  accessedAt DateTime      @default(now())
+}
+
+model Scene {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  order        Int
+  narration    String
+  onScreenText String?
+  // Kata kunci pencarian aset dalam bahasa Inggris.
+  keywords     String[]
+  visualType   String   @default("image")
+  mood         String?
+  durationMs   Int?
+  // Data peta dan timeline: lokasi, rute, tanggal (lihat F-29).
+  mapData      Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assets    SceneAsset[]
+  voiceover Voiceover?
+
+  @@unique([projectId, order])
+}
+
+model Asset {
+  id          String    @id @default(cuid())
+  kind        AssetKind
+  // Penyedia, misalnya wikimedia, rijksmuseum, pexels, pixabay, upload, imagen.
+  provider    String
+  providerId  String?
+  originalUrl String?
+  localPath   String?
+  author      String?
+  license     String?
+  width       Int?
+  height      Int?
+  durationMs  Int?
+  retrievedAt DateTime  @default(now())
+
+  scenes SceneAsset[]
+
+  @@unique([provider, providerId])
+}
+
+// Kandidat aset per adegan; tepat satu kandidat per adegan ditandai terpilih.
+model SceneAsset {
+  sceneId  String
+  scene    Scene   @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  assetId  String
+  asset    Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  rank     Int     @default(0)
+  selected Boolean @default(false)
+
+  @@id([sceneId, assetId])
+}
+
+model Voiceover {
+  id             String   @id @default(cuid())
+  sceneId        String   @unique
+  scene          Scene    @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  audioPath      String
+  durationMs     Int
+  voiceId        String
+  // Timestamp per kata untuk subtitle karaoke: [{ word, startMs, endMs }].
+  wordTimestamps Json     @default("[]")
+  createdAt      DateTime @default(now())
+}
+
+// Satu baris per job di antrian (riset, naskah, aset, audio, render, publish).
+// Pengaturan render (resolusi, fps) disimpan di input.
+model JobRun {
+  id         String    @id @default(cuid())
+  kind       JobKind
+  status     JobStatus @default(QUEUED)
+  progress   Int       @default(0)
+  input      Json?
+  result     Json?
+  error      String?
+  projectId  String?
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  video Video?
+
+  @@index([projectId, kind])
+  @@index([createdAt])
+}
+
+model Video {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  jobRunId     String?  @unique
+  jobRun       JobRun?  @relation(fields: [jobRunId], references: [id], onDelete: SetNull)
+  storageKey   String
+  thumbnailKey String?
+  srtKey       String?
+  durationMs   Int
+  sizeBytes    BigInt
+  width        Int
+  height       Int
+  fps          Int
+  createdAt    DateTime @default(now())
+
+  uploads YoutubeUpload[]
+}
+
+model YoutubeChannel {
+  id           String   @id @default(cuid())
+  channelId    String   @unique
+  title        String
+  // Refresh token OAuth, disimpan terenkripsi.
+  refreshToken String
+  createdAt    DateTime @default(now())
+
+  uploads YoutubeUpload[]
+}
+
+model YoutubeUpload {
+  id             String         @id @default(cuid())
+  videoId        String
+  video          Video          @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  channelId      String
+  channel        YoutubeChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  youtubeVideoId String?
+  title          String
+  description    String
+  tags           String[]
+  privacy        Privacy        @default(PRIVATE)
+  publishAt      DateTime?
+  status         UploadStatus   @default(QUEUED)
+  error          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}

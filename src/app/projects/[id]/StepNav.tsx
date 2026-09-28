@@ -8,7 +8,7 @@ const steps = [
   { slug: "script", label: "2. Naskah" },
   { slug: "storyboard", label: "3. Storyboard" },
   { slug: "audio", label: "4. Audio" },
-  { slug: null, label: "5. Render", note: "Fase 3" },
+  { slug: "render", label: "5. Render" },
 ];
 
 export function StepNav({ projectId }: { projectId: string }) {
@@ -16,13 +16,6 @@ export function StepNav({ projectId }: { projectId: string }) {
   return (
     <nav className="flex flex-wrap gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800">
       {steps.map((step) => {
-        if (!step.slug) {
-          return (
-            <span key={step.label} className="px-3 py-2 text-zinc-400 dark:text-zinc-600" title={`Hadir di ${step.note}`}>
-              {step.label}
-            </span>
-          );
-        }
         const href = `/projects/${projectId}/${step.slug}`;
         const active = pathname === href;
         return (

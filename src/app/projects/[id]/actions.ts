@@ -11,6 +11,7 @@ import { estimateDurationMs, hasReached } from "@/lib/projects";
 import { enqueueJob, type ScriptJobInput } from "@/lib/queue";
 import { startAssets } from "./storyboard/actions";
 import { startAudio } from "./audio/actions";
+import { startRender } from "./render/actions";
 
 // Riset (ulang). Brief lama diganti saat riset selesai.
 export async function startResearch(projectId: string) {
@@ -36,6 +37,7 @@ export async function retryFailedStage(projectId: string) {
   if (project.failedStage === "SCRIPT") return startScript(projectId);
   if (project.failedStage === "ASSETS") return startAssets(projectId);
   if (project.failedStage === "AUDIO") return startAudio(projectId);
+  if (project.failedStage === "RENDER") return startRender(projectId);
 }
 
 // F-07: brief yang diedit menjadi dasar naskah. Mengedit brief setelah naskah

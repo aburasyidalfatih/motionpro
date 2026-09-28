@@ -11,8 +11,9 @@ Rencana lengkap ada di [PRD MotionPro](https://claude.ai/code/artifact/2c3fda1a-
 - **Fase 0 (Fondasi):** Next.js, Prisma + PostgreSQL, antrian BullMQ + Redis, worker, Remotion. Halaman **Sistem** menampilkan status layanan dan menjalankan job uji.
 - **Fase 1 (Riset dan naskah):** proyek baru → riset otomatis dengan Gemini + Google Search → research brief bersumber yang bisa diedit → naskah per adegan (narasi, teks layar, kata kunci aset, tipe visual, data peta dan timeline) → editor adegan (edit, urutkan, tambah, hapus, tulis ulang satu adegan dengan Gemini).
 - **Fase 2 (Aset dan audio):** storyboard dengan aset otomatis per adegan (lukisan dan arsip dari Wikimedia Commons, footage dari Pexels), ganti kandidat, cari ulang, unggah aset sendiri, lisensi tercatat; voice over per adegan dengan Gemini TTS (durasi adegan mengikuti audio, waktu per kata untuk subtitle); musik latar dari library sendiri.
+- **Fase 3 (Template, render, galeri):** template video sejarah (kartu judul, lukisan dengan ken-burns, footage, peta animasi dengan rute, label, penanda tahun, subtitle karaoke, crossfade, musik dengan ducking, SFX), pratinjau di browser, render MP4 1080p 30 fps (H.264, AAC) di antrian dengan progress, gambar mini dan file SRT, galeri dengan unduhan.
 
-Berikutnya: Fase 3 (template, render, galeri).
+Berikutnya: Fase 4 (unggah ke YouTube dan deploy ke VPS).
 
 ## Kebutuhan
 
@@ -67,6 +68,12 @@ Tanpa API key, isi `AI_PROVIDER=fake` di `.env` untuk menguji alur aplikasi deng
 - **Musik dan efek suara:** isi folder `library/` sendiri; lihat [library/README.md](library/README.md).
 - Semua file (aset, audio, unggahan) disimpan di `STORAGE_DIR` (default `./storage`).
 
+## Render (Fase 3)
+
+- Tab **Render** di halaman proyek memutar pratinjau video lengkap di browser, lalu **Render video 1080p** memasukkan render ke antrian. Hasilnya (MP4, gambar mini, SRT) disimpan di `storage/videos/` dan tampil di **Galeri**.
+- Render memakan hampir seluruh CPU. Video 10 menit butuh sekitar 10–40 menit tergantung komputer. Atur jumlah tab Chrome paralel lewat `RENDER_CONCURRENCY`.
+- Coba template tanpa data proyek: `npm run studio`, lalu pilih komposisi **HistoryVideo**.
+
 ## Perintah
 
 | Perintah | Fungsi |
@@ -102,9 +109,10 @@ src/
   lib/ai/              Gemini: prompt, skema output (zod), implementasi tiruan
   lib/assets/          Pencarian dan unduhan aset (Wikimedia Commons, Pexels)
   lib/tts/             Voice over Gemini TTS, WAV, perkiraan waktu per kata
-  worker/              Worker BullMQ dan handler per jenis job (riset, naskah, aset, audio)
+  worker/              Worker BullMQ dan handler per jenis job (riset, naskah, aset, audio, render)
   scripts/             Skrip command line (check:ai)
-  remotion/            Komposisi video Remotion
+  remotion/            Komposisi video Remotion (history/ = template video sejarah)
+  lib/video/           Data template dari database, SRT, server file untuk render
   generated/prisma/    Klien Prisma hasil generate (tidak di-commit)
 library/               Musik latar dan efek suara milik sendiri (file audio tidak di-commit)
 storage/               File aset, audio, dan unggahan (tidak di-commit)

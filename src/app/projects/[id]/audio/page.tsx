@@ -198,7 +198,7 @@ function AudioBody({ project, music, sfxCount }: { project: ProjectData; music: 
         )}
         <p className="text-xs text-zinc-500">
           Musik otomatis mengecil saat narasi berbicara, dan {sfxCount} efek suara dari <code>library/sfx/</code> dipasang
-          di transisi. Keduanya diterapkan saat render (Fase 3).
+          di transisi. Keduanya diterapkan saat render.
         </p>
       </section>
     </div>

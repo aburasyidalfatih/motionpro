@@ -16,11 +16,13 @@ const CONTENT_TYPES: Record<string, string> = {
   ".mp3": "audio/mpeg",
   ".ogg": "audio/ogg",
   ".m4a": "audio/mp4",
+  ".srt": "application/x-subrip; charset=utf-8",
 };
 
 // Menyajikan file dari folder lokal dengan dukungan Range, agar audio dan video
 // bisa di-seek di browser.
-export async function serveFile(root: string, segments: string[], request: Request) {
+// downloadName diisi untuk memaksa browser mengunduh file dengan nama tersebut.
+export async function serveFile(root: string, segments: string[], request: Request, downloadName?: string | null) {
   let absolute: string;
   try {
     absolute = resolveInside(root, segments.map(decodeURIComponent).join("/"));
@@ -35,6 +37,10 @@ export async function serveFile(root: string, segments: string[], request: Reque
     "Accept-Ranges": "bytes",
     "Cache-Control": "private, max-age=3600",
   });
+  if (downloadName) {
+    const ascii = downloadName.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "");
+    headers.set("Content-Disposition", `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(downloadName)}`);
+  }
 
   const range = request.headers.get("range")?.match(/^bytes=(\d*)-(\d*)$/);
   if (range && (range[1] || range[2])) {

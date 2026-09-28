@@ -19,5 +19,6 @@ AI-assisted studio for history motion-graphic videos (Indonesian UI). Plan and p
 - Files live in `STORAGE_DIR` and are referenced by relative path (`src/lib/storage.ts`), served by `/api/files/...`; music/SFX come from `library/` via `/api/library/...`. Asset and audio stage status is derived from data by `recomputeStatus` (`src/lib/project-status.ts`); call it after changing scenes, assets or voiceovers.
 - Jobs whose input has a `sceneId` are scene-level (`isSceneJob`): they never mark the project FAILED and don't lock the page.
 - Polling for job progress (`AutoRefresh`) lives in pages, not in `projects/[id]/layout.tsx`: layouts are not re-rendered when switching tabs inside a project.
+- Video template: `src/remotion/history/` (plain props, relative imports only, no `@/` alias: it is bundled by Remotion's webpack). Props are built from the DB by `buildVideoProps` (`src/lib/video/props.ts`) with a `UrlResolver`: browser URLs for the Player, a worker-local static server for rendering.
 - Checks before committing: `npm run typecheck`, `npm run lint`, `npm run build`.
 - UI copy is in Indonesian.

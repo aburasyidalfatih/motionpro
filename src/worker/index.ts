@@ -13,17 +13,19 @@ import {
 import { assets } from "./handlers/assets";
 import { audio } from "./handlers/audio";
 import { ping } from "./handlers/ping";
+import { render } from "./handlers/render";
 import { research } from "./handlers/research";
 import { script } from "./handlers/script";
 import type { JobHandler } from "./types";
 
-// Handler per jenis job. Tahap render dan publish ditambahkan di fase 3 dan 4.
+// Handler per jenis job. Tahap publish ditambahkan di fase 4.
 const handlers: Partial<Record<JobKind, JobHandler>> = {
   PING: ping,
   RESEARCH: research,
   SCRIPT: script,
   ASSETS: assets,
   AUDIO: audio,
+  RENDER: render,
 };
 
 // Render memakan hampir seluruh CPU, jadi default-nya satu job sekaligus.

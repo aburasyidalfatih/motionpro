@@ -2,12 +2,14 @@ import { db } from "@/lib/db";
 
 // Status tahap aset dan audio dihitung dari datanya: semua adegan punya aset
 // terpilih → ASSETS_READY; ditambah semua adegan punya voice over → AUDIO_READY.
-// Dipanggil setelah job aset/audio dan setelah adegan diubah.
+// Dipanggil setelah job aset/audio dan setelah adegan, aset, atau suara diubah.
 export async function recomputeStatus(projectId: string) {
   const project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
+  // Video yang sudah dirender menjadi usang bila adegan, aset, atau suara diubah,
+  // jadi status RENDERED juga dihitung ulang (kembali ke AUDIO_READY).
   const inAssetAudioStage =
-    ["SCRIPT_READY", "ASSETS_READY", "AUDIO_READY"].includes(project.status) ||
-    (project.status === "FAILED" && (project.failedStage === "ASSETS" || project.failedStage === "AUDIO"));
+    ["SCRIPT_READY", "ASSETS_READY", "AUDIO_READY", "RENDERED"].includes(project.status) ||
+    (project.status === "FAILED" && ["ASSETS", "AUDIO", "RENDER"].includes(project.failedStage ?? ""));
   if (!inAssetAudioStage) return;
 
   const [scenes, withAsset, withVoice] = await Promise.all([

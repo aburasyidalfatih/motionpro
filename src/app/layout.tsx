@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 
 const nav = [
   { href: "/", label: "Proyek" },
+  { href: "/gallery", label: "Galeri" },
   { href: "/preview", label: "Pratinjau template" },
   { href: "/system", label: "Sistem" },
 ];

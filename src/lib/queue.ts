@@ -40,6 +40,11 @@ export type AudioJobInput = {
   regenerate?: boolean;
 };
 
+// Input job RENDER.
+export type RenderJobInput = {
+  subtitles?: boolean;
+};
+
 // Job untuk satu adegan tidak menandai proyek gagal dan tidak mengunci halaman.
 export function isSceneJob(input: unknown) {
   return Boolean((input as { sceneId?: string } | null)?.sceneId);

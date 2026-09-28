@@ -29,6 +29,20 @@ function isHardQuota(message: string) {
   return /PerDay|limit: 0\b/.test(message);
 }
 
+// Error permintaan (key salah, model tidak ada, permintaan ditolak) tidak
+// pulih dengan dicoba ulang; tampilkan pesan yang bisa ditindaklanjuti.
+function fatalError(err: unknown, model: string) {
+  if (!(err instanceof ApiError)) return err;
+  const detail = err.message.match(/"message"\s*:\s*"([^"]+)"/)?.[1] ?? err.message;
+  if (err.status === 404) {
+    return new UnrecoverableError(`Model Gemini "${model}" tidak ditemukan. Ganti GEMINI_MODEL di .env. (${detail})`);
+  }
+  if (err.status === 400 || err.status === 401 || err.status === 403) {
+    return new UnrecoverableError(`Gemini menolak permintaan (${err.status}): ${detail}`);
+  }
+  return err;
+}
+
 function quotaError(model: string) {
   return new UnrecoverableError(
     `Kuota Gemini untuk model ${model} habis (error 429). Cek pemakaian di https://aistudio.google.com/usage. ` +
@@ -70,14 +84,29 @@ export function createGeminiAI(): ScriptAI {
   }
 
   async function generateJson<T>(schema: z.ZodType<T>, prompt: string): Promise<T> {
-    const response = await generate({
-      contents: prompt,
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        responseMimeType: "application/json",
-        responseJsonSchema: toGeminiSchema(schema),
-      },
-    });
+    const jsonSchema = toGeminiSchema(schema);
+    let response;
+    try {
+      response = await generate({
+        contents: prompt,
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          responseJsonSchema: jsonSchema,
+        },
+      });
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 400)) throw fatalError(err, model);
+      // Skema ditolak (terlalu kompleks untuk model ini): minta JSON biasa dengan
+      // skema di dalam prompt, lalu validasi jawabannya dengan zod.
+      console.warn("[gemini] skema ditolak (400), mencoba mode JSON tanpa skema");
+      response = await generate({
+        contents: `${prompt}\n\nJawab HANYA dengan JSON yang sesuai JSON Schema berikut:\n${JSON.stringify(jsonSchema)}`,
+        config: { systemInstruction: SYSTEM_PROMPT, responseMimeType: "application/json" },
+      }).catch((retryErr) => {
+        throw fatalError(retryErr, model);
+      });
+    }
     const text = response.text;
     if (!text) throw new Error("Gemini tidak mengembalikan jawaban");
     // Jawaban yang tidak sesuai skema dilempar sebagai error agar job dicoba ulang.
@@ -94,6 +123,8 @@ export function createGeminiAI(): ScriptAI {
           systemInstruction: SYSTEM_PROMPT,
           tools: [{ googleSearch: {} }],
         },
+      }).catch((err) => {
+        throw fatalError(err, model);
       });
       const metadata = response.candidates?.[0]?.groundingMetadata;
       const sources: SourceRef[] = [];

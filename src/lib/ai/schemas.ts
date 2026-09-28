@@ -65,7 +65,7 @@ export const sceneSchema = z.object({
   keywords: z
     .array(z.string().describe("Kata kunci pencarian aset dalam bahasa Inggris"))
     .min(1)
-    .max(5),
+    .max(8),
   visualType: z.enum(visualTypes),
   mood: z.enum(moods),
   map: mapDataSchema.optional().describe("Wajib diisi bila visualType = map"),
@@ -79,9 +79,24 @@ export const scriptSchema = z.object({
 });
 export type Script = z.infer<typeof scriptSchema>;
 
+// Batasan jumlah dan rentang membuat skema terlalu kompleks bagi Gemini
+// (error 400 INVALID_ARGUMENT), jadi tidak dikirim. Batasan itu tetap
+// diperiksa oleh zod saat jawaban divalidasi.
+const CONSTRAINT_KEYS = new Set(["minItems", "maxItems", "minimum", "maximum", "minLength", "maxLength"]);
+
+function stripConstraints(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripConstraints);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !CONSTRAINT_KEYS.has(key) && key !== "$schema")
+        .map(([key, v]) => [key, stripConstraints(v)]),
+    );
+  }
+  return value;
+}
+
 // Konversi ke JSON Schema untuk parameter responseJsonSchema Gemini.
 export function toGeminiSchema(schema: z.ZodType) {
-  const json = z.toJSONSchema(schema, { io: "output" }) as Record<string, unknown>;
-  delete json.$schema;
-  return json;
+  return stripConstraints(z.toJSONSchema(schema, { io: "output" })) as Record<string, unknown>;
 }

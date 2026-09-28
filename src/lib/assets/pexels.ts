@@ -1,3 +1,4 @@
+import { queryVariants } from "./query";
 import type { AssetCandidate, AssetProvider } from "./types";
 
 // Pexels: footage suasana dan foto. Butuh PEXELS_API_KEY (gratis).
@@ -21,10 +22,20 @@ type PexelsVideo = {
   url: string;
   image: string;
   user: { name: string };
-  video_files: { quality: string | null; file_type: string; width: number | null; height: number | null; link: string }[];
+  video_files: {
+    quality: string | null;
+    file_type: string;
+    width: number | null;
+    height: number | null;
+    link: string;
+  }[];
 };
 
 const LICENSE = "Pexels License";
+
+// Pexels mencari berdasarkan makna, tapi kata gaya ("cinematic intro") justru
+// menarik hasil yang tidak relevan; pakai frasa tanpa kata pengisi.
+const clean = (query: string) => queryVariants(query)[1] ?? query;
 
 async function get<T>(path: string, params: Record<string, string>): Promise<T> {
   const key = process.env.PEXELS_API_KEY;
@@ -52,7 +63,7 @@ export const pexels: AssetProvider = {
 
   async searchImages(query, { limit }) {
     const data = await get<{ photos: PexelsPhoto[] }>("/v1/search", {
-      query,
+      query: clean(query),
       per_page: String(limit),
       orientation: "landscape",
     });
@@ -76,7 +87,7 @@ export const pexels: AssetProvider = {
 
   async searchVideos(query, { limit }) {
     const data = await get<{ videos: PexelsVideo[] }>("/videos/search", {
-      query,
+      query: clean(query),
       per_page: String(limit),
       orientation: "landscape",
     });

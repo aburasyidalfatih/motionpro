@@ -76,9 +76,13 @@ export function SceneAssets({ scene, index, busy }: { scene: SceneWithAssets; in
               <form key={link.assetId} action={selectAsset.bind(null, scene.id, link.assetId)}>
                 <button
                   type="submit"
-                  title={`${link.asset.title ?? ""} · ${link.asset.license ?? ""}`}
+                  title={`${link.asset.title ?? ""} · ${link.asset.license ?? ""}${link.rank >= 100 ? " · dinilai kurang relevan" : ""}`}
                   className={`block overflow-hidden rounded border-2 ${
-                    link.selected ? "border-zinc-900 dark:border-zinc-100" : "border-transparent opacity-80 hover:opacity-100"
+                    link.selected
+                      ? "border-zinc-900 dark:border-zinc-100"
+                      : link.rank >= 100
+                        ? "border-transparent opacity-30 hover:opacity-100"
+                        : "border-transparent opacity-80 hover:opacity-100"
                   }`}
                 >
                   <Thumb asset={link.asset} className="h-14 w-24" />

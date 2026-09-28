@@ -1,4 +1,4 @@
-import type { NumberedSource, ProjectBrief, ResearchNote } from "./types";
+import type { NumberedSource, ProjectBrief, RankingScene, ResearchNote } from "./types";
 import type { SceneDraft } from "./schemas";
 
 // Kecepatan bicara narator Bahasa Indonesia yang dipakai untuk perkiraan durasi.
@@ -93,4 +93,22 @@ Narasi adegan berikutnya: ${input.next ?? "(tidak ada, ini adegan terakhir)"}
 Pertahankan panjang yang mirip dan alur dengan adegan sebelum dan sesudahnya.
 Gunakan HANYA fakta dari research brief:
 ${input.briefMarkdown}`;
+}
+
+export function rankAssetsPrompt(p: ProjectBrief, scenes: RankingScene[]) {
+  const list = scenes
+    .map((scene, i) => {
+      const candidates = scene.candidates
+        .map((c, j) => `  [${j}] ${c.title} (${c.provider}, ${c.kind === "VIDEO" ? "video" : "gambar"})`)
+        .join("\n");
+      return `Adegan ${i}: (${scene.visualType}) ${scene.narration}\n${candidates || "  (tidak ada kandidat)"}`;
+    })
+    .join("\n\n");
+  return `Pilih aset visual untuk video dokumenter sejarah "${p.topic}".
+Untuk tiap adegan, sebutkan nomor kandidat yang cocok dengan narasi dan era/tempatnya, paling cocok dulu.
+Buang kandidat yang jelas tidak relevan: tulisan atau grafis modern, benda atau orang masa kini, tempat atau era
+yang salah (misalnya kuil Jepang untuk Majapahit). Untuk adegan suasana (footage), pemandangan alam atau laut yang
+sesuai boleh dipakai. Bila tidak ada yang cocok, kosongkan daftarnya. Sertakan semua adegan.
+
+${list}`;
 }

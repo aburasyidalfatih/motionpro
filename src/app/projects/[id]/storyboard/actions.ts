@@ -7,14 +7,15 @@ import { hasActiveStageJob } from "@/lib/project-jobs";
 import { recomputeStatus } from "@/lib/project-status";
 import { enqueueJob, type AssetJobInput } from "@/lib/queue";
 
-// F-13: mencari aset untuk semua adegan yang belum punya kandidat.
-export async function startAssets(projectId: string) {
+// F-13: mencari aset untuk adegan yang belum punya kandidat, atau semua adegan (all).
+export async function startAssets(projectId: string, all = false) {
   if (await hasActiveStageJob(projectId)) return;
   const project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
   if (project.status === "FAILED") {
     await db.project.update({ where: { id: projectId }, data: { status: "SCRIPT_READY", failedStage: null } });
   }
-  await enqueueJob("ASSETS", { projectId });
+  const input: AssetJobInput = { all };
+  await enqueueJob("ASSETS", { projectId, input });
   redirect(`/projects/${projectId}/storyboard`);
 }
 

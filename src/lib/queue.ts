@@ -23,12 +23,14 @@ export type ScriptJobInput = {
   instruction?: string;
 };
 
-// Input job ASSETS: tanpa sceneId, cari aset untuk semua adegan yang belum
-// punya kandidat; dengan sceneId, cari ulang (query) atau unduh aset terpilih.
+// Input job ASSETS: tanpa sceneId, cari aset untuk adegan yang belum punya
+// kandidat (atau semua adegan bila all); dengan sceneId, cari ulang (query)
+// atau unduh aset terpilih (downloadOnly).
 export type AssetJobInput = {
   sceneId?: string;
   query?: string;
   downloadOnly?: boolean;
+  all?: boolean;
 };
 
 // Input job AUDIO: tanpa sceneId, buat voice over untuk adegan yang belum

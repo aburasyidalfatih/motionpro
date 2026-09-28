@@ -4,12 +4,20 @@ import { fatalError, geminiClient, type GeminiRequest } from "./client";
 import {
   briefPrompt,
   planPrompt,
+  rankAssetsPrompt,
   researchPrompt,
   rewritePrompt,
   scriptPrompt,
   SYSTEM_PROMPT,
 } from "./prompts";
-import { briefSchema, researchPlanSchema, sceneSchema, scriptSchema, toGeminiSchema } from "./schemas";
+import {
+  assetRankingSchema,
+  briefSchema,
+  researchPlanSchema,
+  sceneSchema,
+  scriptSchema,
+  toGeminiSchema,
+} from "./schemas";
 import type { ResearchNote, ScriptAI, SourceRef } from "./types";
 
 const DEFAULT_MODEL = "gemini-3.8-flash";
@@ -85,5 +93,7 @@ export function createGeminiAI(): ScriptAI {
       generateJson(scriptSchema, scriptPrompt(project, briefMarkdown)),
 
     rewriteScene: (input) => generateJson(sceneSchema, rewritePrompt(input)),
+
+    rankAssets: (project, scenes) => generateJson(assetRankingSchema, rankAssetsPrompt(project, scenes)),
   };
 }

@@ -49,7 +49,7 @@ function StoryboardBody({ project }: { project: ProjectData }) {
   }
 
   const withAsset = scenes.filter((s) => s.assets.some((a) => a.selected)).length;
-  const unsearched = scenes.filter((s) => s.assets.length === 0).length;
+  const unsearched = scenes.filter((s) => !s.assets.some((a) => a.asset.provider !== "upload")).length;
   const hasFootage = scenes.some((s) => s.visualType === "footage");
 
   return (
@@ -59,13 +59,27 @@ function StoryboardBody({ project }: { project: ProjectData }) {
           {withAsset} dari {scenes.length} adegan punya aset. Klik gambar kecil untuk mengganti aset, cari ulang
           dengan kata kunci lain, atau unggah aset sendiri.
         </p>
-        {unsearched > 0 && (
-          <form action={startAssets.bind(null, project.id)}>
-            <SubmitButton disabled={busy} pendingText="Memulai...">
-              Cari aset untuk {unsearched} adegan
-            </SubmitButton>
-          </form>
-        )}
+        <div className="flex gap-2">
+          {unsearched < scenes.length && (
+            <form action={startAssets.bind(null, project.id, true)}>
+              <SubmitButton
+                variant="secondary"
+                disabled={busy}
+                pendingText="Memulai..."
+                title="Kandidat hasil pencarian diganti; aset unggahan Anda tetap"
+              >
+                Cari ulang semua
+              </SubmitButton>
+            </form>
+          )}
+          {unsearched > 0 && (
+            <form action={startAssets.bind(null, project.id, false)}>
+              <SubmitButton disabled={busy} pendingText="Memulai...">
+                Cari aset untuk {unsearched} adegan
+              </SubmitButton>
+            </form>
+          )}
+        </div>
       </div>
 
       {hasFootage && !pexelsEnabled() && (

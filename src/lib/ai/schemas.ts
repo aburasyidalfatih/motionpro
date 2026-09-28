@@ -79,6 +79,17 @@ export const scriptSchema = z.object({
 });
 export type Script = z.infer<typeof scriptSchema>;
 
+// F-14: kandidat aset yang relevan per adegan, urut dari yang paling cocok.
+export const assetRankingSchema = z.object({
+  scenes: z.array(
+    z.object({
+      scene: z.number().int().describe("Nomor adegan seperti di daftar"),
+      relevant: z.array(z.number().int()).describe("Nomor kandidat yang cocok, paling cocok dulu"),
+    }),
+  ),
+});
+export type AssetRanking = z.infer<typeof assetRankingSchema>;
+
 // Batasan jumlah dan rentang membuat skema terlalu kompleks bagi Gemini
 // (error 400 INVALID_ARGUMENT), jadi tidak dikirim. Batasan itu tetap
 // diperiksa oleh zod saat jawaban divalidasi.

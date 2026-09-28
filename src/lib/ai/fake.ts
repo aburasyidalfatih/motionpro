@@ -103,6 +103,11 @@ export function createFakeAI(): ScriptAI {
       return { title: project.topic, scenes };
     },
 
+    // Mode tiruan: semua kandidat dianggap relevan, urutan tetap.
+    async rankAssets(_project, scenes) {
+      return { scenes: scenes.map((s, scene) => ({ scene, relevant: s.candidates.map((_, i) => i) })) };
+    },
+
     async rewriteScene({ scene, instruction }) {
       await pause(300);
       return { ...scene, narration: `${scene.narration} (ditulis ulang: ${instruction || "tanpa instruksi"})` };

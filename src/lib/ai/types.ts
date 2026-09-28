@@ -1,4 +1,4 @@
-import type { Brief, ResearchPlan, SceneDraft, Script } from "./schemas";
+import type { AssetRanking, Brief, ResearchPlan, SceneDraft, Script } from "./schemas";
 
 export type ProjectBrief = {
   topic: string;
@@ -19,8 +19,15 @@ export type ResearchNote = {
 
 export type NumberedSource = SourceRef & { position: number };
 
-// Semua panggilan AI untuk riset dan naskah. Implementasinya Gemini
-// (produksi) atau tiruan (uji tanpa API key, AI_PROVIDER=fake).
+// Satu adegan beserta kandidat asetnya untuk dinilai relevansinya (F-14).
+export type RankingScene = {
+  narration: string;
+  visualType: string;
+  candidates: { title: string; provider: string; kind: string }[];
+};
+
+// Semua panggilan AI teks: riset, naskah, dan pemilihan aset. Implementasinya
+// Gemini (produksi) atau tiruan (uji tanpa API key, AI_PROVIDER=fake).
 export interface ScriptAI {
   planResearch(project: ProjectBrief): Promise<ResearchPlan>;
   research(project: ProjectBrief, question: string): Promise<ResearchNote>;
@@ -38,4 +45,5 @@ export interface ScriptAI {
     next?: string;
     instruction: string;
   }): Promise<SceneDraft>;
+  rankAssets(project: ProjectBrief, scenes: RankingScene[]): Promise<AssetRanking>;
 }

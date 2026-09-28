@@ -1,6 +1,6 @@
 import { fatalError, geminiClient } from "@/lib/ai/client";
 import { estimateDurationMs } from "@/lib/projects";
-import { tonePcm } from "./audio";
+import { pcmDurationMs, tonePcm } from "./audio";
 
 // Voice over dengan Gemini TTS. Model dan suara bisa diganti lewat .env dan
 // halaman Audio; mode tiruan (AI_PROVIDER=fake) menghasilkan nada pengganti.
@@ -29,18 +29,27 @@ export const VOICE_SUGGESTIONS = [
 
 export type Speech = { pcm: Buffer; sampleRate: number };
 
-export async function synthesize(text: string, options: { voice: string; style: string }): Promise<Speech> {
-  if (process.env.AI_PROVIDER === "fake") {
-    return { pcm: tonePcm(estimateDurationMs(text)), sampleRate: 24_000 };
-  }
+// Instruksi gaya dan teks dipisah dengan struktur "catatan sutradara / transkrip"
+// agar model TTS tidak ikut membacakan instruksinya.
+function ttsPrompt(text: string, style: string) {
+  if (!style.trim()) return text;
+  return `### DIRECTOR'S NOTES\n${style.trim()}\n\n### TRANSCRIPT\n${text}`;
+}
 
-  const model = process.env.GEMINI_TTS_MODEL || DEFAULT_MODEL;
+// Audio jauh lebih panjang dari perkiraan hampir pasti berarti instruksi ikut
+// dibacakan (atau model mengarang tambahan).
+function tooLong(speech: Speech, text: string) {
+  const expected = estimateDurationMs(text);
+  return pcmDurationMs(speech.pcm, speech.sampleRate) > Math.max(expected * 1.8, expected + 4_000);
+}
+
+async function generateSpeech(model: string, prompt: string, voice: string): Promise<Speech> {
   const response = await geminiClient()
     .generate(model, {
-      contents: [{ role: "user", parts: [{ text: `${options.style}\n\n${text}` }] }],
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         responseModalities: ["AUDIO"],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: options.voice } } },
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
       },
     })
     .catch((err) => {
@@ -52,4 +61,19 @@ export async function synthesize(text: string, options: { voice: string; style: 
   // Format yang dikembalikan: PCM 16-bit mono, misalnya "audio/L16;codec=pcm;rate=24000".
   const rate = Number(part.inlineData.mimeType?.match(/rate=(\d+)/)?.[1] ?? 24_000);
   return { pcm: Buffer.from(part.inlineData.data, "base64"), sampleRate: rate };
+}
+
+export async function synthesize(text: string, options: { voice: string; style: string }): Promise<Speech> {
+  if (process.env.AI_PROVIDER === "fake") {
+    return { pcm: tonePcm(estimateDurationMs(text)), sampleRate: 24_000 };
+  }
+
+  const model = process.env.GEMINI_TTS_MODEL || DEFAULT_MODEL;
+  const speech = await generateSpeech(model, ttsPrompt(text, options.style), options.voice);
+  if (!options.style.trim() || !tooLong(speech, text)) return speech;
+
+  // Coba sekali lagi hanya dengan teks narasi, tanpa instruksi gaya.
+  console.warn(`[tts] audio terlalu panjang untuk "${text.slice(0, 40)}...", diulang tanpa instruksi gaya`);
+  const plain = await generateSpeech(model, text, options.voice);
+  return pcmDurationMs(plain.pcm, plain.sampleRate) < pcmDurationMs(speech.pcm, speech.sampleRate) ? plain : speech;
 }

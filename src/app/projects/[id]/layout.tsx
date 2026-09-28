@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
 import { jobKindLabel, projectStatusLabel } from "@/lib/labels";
-import { isSceneRewrite } from "@/lib/queue";
+import { isSceneJob } from "@/lib/queue";
 import { retryFailedStage } from "./actions";
 import { StepNav } from "./StepNav";
 
@@ -17,7 +17,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
   if (!project) notFound();
 
   const activeJobs = project.jobs.filter((j) => j.status === "QUEUED" || j.status === "RUNNING");
-  const stageJob = activeJobs.find((j) => !isSceneRewrite(j.input));
+  const stageJob = activeJobs.find((j) => !isSceneJob(j.input));
   const failedJob =
     project.status === "FAILED"
       ? project.jobs.find((j) => j.status === "FAILED" && j.kind === project.failedStage)

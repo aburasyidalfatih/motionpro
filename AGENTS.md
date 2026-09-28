@@ -16,6 +16,8 @@ AI-assisted studio for history motion-graphic videos (Indonesian UI). Plan and p
 - Web only enqueues jobs (`enqueueJob` in `src/lib/queue.ts`); the worker (`src/worker`) does the work and writes status/progress to `JobRun`. Add a pipeline stage by adding a handler to the `handlers` map in `src/worker/index.ts`.
 - Pages that read the database call `await connection()` so they are not prerendered at build time.
 - AI calls go through the `ScriptAI` interface (`src/lib/ai`): Gemini in production, `AI_PROVIDER=fake` for tests without an API key. Output shapes are zod schemas in `src/lib/ai/schemas.ts`, sent to Gemini as JSON Schema and used to validate the response.
+- Files live in `STORAGE_DIR` and are referenced by relative path (`src/lib/storage.ts`), served by `/api/files/...`; music/SFX come from `library/` via `/api/library/...`. Asset and audio stage status is derived from data by `recomputeStatus` (`src/lib/project-status.ts`); call it after changing scenes, assets or voiceovers.
+- Jobs whose input has a `sceneId` are scene-level (`isSceneJob`): they never mark the project FAILED and don't lock the page.
 - Polling for job progress (`AutoRefresh`) lives in pages, not in `projects/[id]/layout.tsx`: layouts are not re-rendered when switching tabs inside a project.
 - Checks before committing: `npm run typecheck`, `npm run lint`, `npm run build`.
 - UI copy is in Indonesian.

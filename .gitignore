@@ -52,3 +52,9 @@ next-env.d.ts
 
 # redis snapshot saat menjalankan redis-server lokal
 dump.rdb
+
+# file audio di library (lisensi dan ukuran; tiap pengguna mengisi sendiri)
+/library/**/*.mp3
+/library/**/*.wav
+/library/**/*.ogg
+/library/**/*.m4a

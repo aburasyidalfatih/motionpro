@@ -4,7 +4,7 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
 import { countWords, formatDuration } from "@/lib/projects";
-import { isSceneRewrite, type ScriptJobInput } from "@/lib/queue";
+import { isSceneJob, type ScriptJobInput } from "@/lib/queue";
 import { startScript } from "../actions";
 import { SceneCard } from "./SceneCard";
 
@@ -36,7 +36,7 @@ export default async function ScriptPage({ params }: PageProps<"/projects/[id]/s
 }
 
 function ScriptBody({ project }: { project: ProjectData }) {
-  const busy = project.jobs.some((j) => !isSceneRewrite(j.input));
+  const busy = project.jobs.some((j) => !isSceneJob(j.input));
   const rewritingIds = new Set(
     project.jobs.map((j) => (j.input as ScriptJobInput | null)?.sceneId).filter(Boolean),
   );
@@ -78,11 +78,19 @@ function ScriptBody({ project }: { project: ProjectData }) {
           {scenes.length} adegan · {totalWords} kata · perkiraan durasi {formatDuration(totalMs)} (target{" "}
           {project.targetMinutes}:00). Durasi pasti mengikuti voice over di Fase 2.
         </p>
-        <form action={startScript.bind(null, project.id)}>
-          <SubmitButton variant="secondary" disabled={busy} pendingText="Memulai...">
-            Tulis ulang seluruh naskah
-          </SubmitButton>
-        </form>
+        <div className="flex gap-2">
+          <form action={startScript.bind(null, project.id)}>
+            <SubmitButton variant="secondary" disabled={busy} pendingText="Memulai...">
+              Tulis ulang seluruh naskah
+            </SubmitButton>
+          </form>
+          <Link
+            href={`/projects/${project.id}/storyboard`}
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          >
+            Lanjut ke storyboard
+          </Link>
+        </div>
       </div>
 
       {briefChanged && !busy && (

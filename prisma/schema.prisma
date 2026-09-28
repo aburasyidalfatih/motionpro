@@ -83,7 +83,11 @@ model Project {
   language      String        @default("id")
   tone          String        @default("dokumenter")
   templateId    String        @default("sejarah-peta")
+  // Suara Gemini TTS dan instruksi gaya bicara narator.
   voiceId       String?
+  voiceStyle    String?
+  // Path musik latar relatif terhadap folder library/music.
+  musicTrack    String?
   aspectRatio   AspectRatio   @default(LANDSCAPE_16_9)
   mode          ProjectMode   @default(EDITOR)
   status        ProjectStatus @default(DRAFT)
@@ -158,6 +162,11 @@ model Asset {
   // Penyedia, misalnya wikimedia, rijksmuseum, pexels, pixabay, upload, imagen.
   provider    String
   providerId  String?
+  title       String?
+  // Halaman sumber (untuk atribusi) dan gambar kecil untuk storyboard.
+  pageUrl     String?
+  previewUrl  String?
+  // File asli yang diunduh sebelum render.
   originalUrl String?
   localPath   String?
   author      String?

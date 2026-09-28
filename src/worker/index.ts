@@ -4,23 +4,26 @@ import type { JobKind } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
   createRedis,
-  isSceneRewrite,
+  isSceneJob,
   PIPELINE_QUEUE,
   WORKER_HEARTBEAT_KEY,
   WORKER_HEARTBEAT_TTL_SECONDS,
   type PipelineJobData,
 } from "@/lib/queue";
+import { assets } from "./handlers/assets";
+import { audio } from "./handlers/audio";
 import { ping } from "./handlers/ping";
 import { research } from "./handlers/research";
 import { script } from "./handlers/script";
 import type { JobHandler } from "./types";
 
-// Handler per jenis job. Tahap lain (aset, audio, render, publish)
-// ditambahkan di fase masing-masing.
+// Handler per jenis job. Tahap render dan publish ditambahkan di fase 3 dan 4.
 const handlers: Partial<Record<JobKind, JobHandler>> = {
   PING: ping,
   RESEARCH: research,
   SCRIPT: script,
+  ASSETS: assets,
+  AUDIO: audio,
 };
 
 // Render memakan hampir seluruh CPU, jadi default-nya satu job sekaligus.
@@ -77,9 +80,9 @@ worker.on("failed", async (job, err) => {
         : { status: "QUEUED", error: `${err.message} (dicoba lagi)` },
     })
     .catch(() => null);
-  // Kegagalan tahap proyek menandai proyek FAILED; kegagalan menulis ulang
-  // satu adegan tidak, karena naskahnya tetap utuh.
-  if (final && run?.projectId && run.kind !== "PING" && !isSceneRewrite(run.input)) {
+  // Kegagalan tahap proyek menandai proyek FAILED; kegagalan job satu adegan
+  // tidak, karena tahapnya tetap utuh.
+  if (final && run?.projectId && run.kind !== "PING" && !isSceneJob(run.input)) {
     await db.project
       .update({ where: { id: run.projectId }, data: { status: "FAILED", failedStage: run.kind } })
       .catch(() => {});

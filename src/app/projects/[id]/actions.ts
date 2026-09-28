@@ -5,17 +5,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { moods, visualTypes } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
+import { deleteVoiceover, hasActiveStageJob as hasActiveJob } from "@/lib/project-jobs";
+import { recomputeStatus } from "@/lib/project-status";
 import { estimateDurationMs, hasReached } from "@/lib/projects";
-import { enqueueJob, isSceneRewrite, type ScriptJobInput } from "@/lib/queue";
-
-// Job riset atau naskah penuh yang sedang berjalan; tulis ulang satu adegan tidak dihitung.
-async function hasActiveJob(projectId: string) {
-  const active = await db.jobRun.findMany({
-    where: { projectId, status: { in: ["QUEUED", "RUNNING"] } },
-    select: { input: true },
-  });
-  return active.some((job) => !isSceneRewrite(job.input));
-}
+import { enqueueJob, type ScriptJobInput } from "@/lib/queue";
+import { startAssets } from "./storyboard/actions";
+import { startAudio } from "./audio/actions";
 
 // Riset (ulang). Brief lama diganti saat riset selesai.
 export async function startResearch(projectId: string) {
@@ -39,6 +34,8 @@ export async function retryFailedStage(projectId: string) {
   const project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
   if (project.failedStage === "RESEARCH") return startResearch(projectId);
   if (project.failedStage === "SCRIPT") return startScript(projectId);
+  if (project.failedStage === "ASSETS") return startAssets(projectId);
+  if (project.failedStage === "AUDIO") return startAudio(projectId);
 }
 
 // F-07: brief yang diedit menjadi dasar naskah. Mengedit brief setelah naskah
@@ -68,6 +65,8 @@ export async function saveScene(sceneId: string, formData: FormData) {
   const parsed = sceneForm.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
   const { narration, onScreenText, keywords, visualType, mood } = parsed.data;
+  const before = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  const narrationChanged = before.narration !== narration;
   await db.scene.update({
     where: { id: sceneId },
     data: {
@@ -79,9 +78,14 @@ export async function saveScene(sceneId: string, formData: FormData) {
         .filter(Boolean),
       visualType,
       mood,
-      durationMs: estimateDurationMs(narration),
+      // Durasi dari voice over tetap dipakai selama narasinya tidak berubah.
+      ...(narrationChanged ? { durationMs: estimateDurationMs(narration) } : {}),
     },
   });
+  if (narrationChanged) {
+    await deleteVoiceover(sceneId);
+    await recomputeStatus(before.projectId);
+  }
   refresh();
 }
 
@@ -112,8 +116,10 @@ export async function moveScene(sceneId: string, direction: "up" | "down") {
 
 export async function deleteScene(sceneId: string) {
   const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  await deleteVoiceover(sceneId);
   await db.scene.delete({ where: { id: sceneId } });
   await renumber(await orderedSceneIds(scene.projectId));
+  await recomputeStatus(scene.projectId);
   refresh();
 }
 
@@ -133,6 +139,7 @@ export async function addSceneAfter(sceneId: string) {
   const ids = (await orderedSceneIds(scene.projectId)).filter((id) => id !== created.id);
   ids.splice(ids.indexOf(sceneId) + 1, 0, created.id);
   await renumber(ids);
+  await recomputeStatus(scene.projectId);
   refresh();
 }
 

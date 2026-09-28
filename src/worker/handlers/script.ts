@@ -3,6 +3,8 @@ import type { Scene } from "@/generated/prisma/client";
 import { scriptAI } from "@/lib/ai";
 import { moods, visualTypes, type SceneDraft } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
+import { deleteVoiceover } from "@/lib/project-jobs";
+import { recomputeStatus } from "@/lib/project-status";
 import { asJson, estimateDurationMs, toProjectBrief } from "@/lib/projects";
 import type { ScriptJobInput } from "@/lib/queue";
 import type { JobHandler } from "../types";
@@ -59,6 +61,9 @@ export const script: JobHandler = async ({ run, setProgress }) => {
       instruction: input.instruction ?? "",
     });
     await db.scene.update({ where: { id: input.sceneId }, data: sceneFields(draft) });
+    // Narasi berubah, jadi voice over lama tidak cocok lagi.
+    await deleteVoiceover(input.sceneId);
+    await recomputeStatus(project.id);
     return { rewritten: input.sceneId };
   }
 

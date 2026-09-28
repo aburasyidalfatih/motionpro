@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
-import { isSceneRewrite } from "@/lib/queue";
+import { isSceneJob } from "@/lib/queue";
 import { saveBrief, startResearch, startScript } from "../actions";
 
 async function loadProject(id: string) {
@@ -33,7 +33,7 @@ export default async function ResearchPage({ params }: PageProps<"/projects/[id]
 }
 
 function ResearchBody({ project }: { project: ProjectData }) {
-  const busy = project.jobs.some((j) => !isSceneRewrite(j.input));
+  const busy = project.jobs.some((j) => !isSceneJob(j.input));
   const brief = project.research;
 
   if (!brief) {

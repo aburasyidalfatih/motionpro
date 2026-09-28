@@ -23,8 +23,24 @@ export type ScriptJobInput = {
   instruction?: string;
 };
 
-export function isSceneRewrite(input: unknown) {
-  return Boolean((input as ScriptJobInput | null)?.sceneId);
+// Input job ASSETS: tanpa sceneId, cari aset untuk semua adegan yang belum
+// punya kandidat; dengan sceneId, cari ulang (query) atau unduh aset terpilih.
+export type AssetJobInput = {
+  sceneId?: string;
+  query?: string;
+  downloadOnly?: boolean;
+};
+
+// Input job AUDIO: tanpa sceneId, buat voice over untuk adegan yang belum
+// punya (atau semua bila regenerate); dengan sceneId, satu adegan saja.
+export type AudioJobInput = {
+  sceneId?: string;
+  regenerate?: boolean;
+};
+
+// Job untuk satu adegan tidak menandai proyek gagal dan tidak mengunci halaman.
+export function isSceneJob(input: unknown) {
+  return Boolean((input as { sceneId?: string } | null)?.sceneId);
 }
 
 // Koneksi worker wajib memakai maxRetriesPerRequest: null (syarat BullMQ).

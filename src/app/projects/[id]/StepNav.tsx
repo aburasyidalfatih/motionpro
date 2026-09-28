@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 const steps = [
   { slug: "research", label: "1. Riset" },
   { slug: "script", label: "2. Naskah" },
-  { slug: null, label: "3. Storyboard", note: "Fase 2" },
-  { slug: null, label: "4. Audio", note: "Fase 2" },
+  { slug: "storyboard", label: "3. Storyboard" },
+  { slug: "audio", label: "4. Audio" },
   { slug: null, label: "5. Render", note: "Fase 3" },
 ];
 

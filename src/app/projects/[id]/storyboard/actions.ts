@@ -1,0 +1,47 @@
+"use server";
+
+import { refresh } from "next/cache";
+import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import { hasActiveStageJob } from "@/lib/project-jobs";
+import { recomputeStatus } from "@/lib/project-status";
+import { enqueueJob, type AssetJobInput } from "@/lib/queue";
+
+// F-13: mencari aset untuk semua adegan yang belum punya kandidat.
+export async function startAssets(projectId: string) {
+  if (await hasActiveStageJob(projectId)) return;
+  const project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
+  if (project.status === "FAILED") {
+    await db.project.update({ where: { id: projectId }, data: { status: "SCRIPT_READY", failedStage: null } });
+  }
+  await enqueueJob("ASSETS", { projectId });
+  redirect(`/projects/${projectId}/storyboard`);
+}
+
+// F-15: memilih kandidat lain. Aset yang belum ada di penyimpanan lokal diunduh worker.
+export async function selectAsset(sceneId: string, assetId: string) {
+  const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  const asset = await db.asset.findUniqueOrThrow({ where: { id: assetId } });
+  await db.$transaction([
+    db.sceneAsset.updateMany({ where: { sceneId }, data: { selected: false } }),
+    db.sceneAsset.update({ where: { sceneId_assetId: { sceneId, assetId } }, data: { selected: true } }),
+  ]);
+  if (!asset.localPath) {
+    const input: AssetJobInput = { sceneId, downloadOnly: true };
+    await enqueueJob("ASSETS", { projectId: scene.projectId, input });
+  }
+  await recomputeStatus(scene.projectId);
+  refresh();
+}
+
+// F-15: mencari ulang kandidat untuk satu adegan dengan kata kunci baru.
+export async function searchSceneAssets(sceneId: string, formData: FormData) {
+  const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  const query = String(formData.get("query") ?? "").trim();
+  const keywords = query.split(",").map((k) => k.trim()).filter(Boolean);
+  // Kata kunci baru disimpan ke adegan agar tetap tampil dan dipakai lagi nanti.
+  if (keywords.length) await db.scene.update({ where: { id: sceneId }, data: { keywords } });
+  const input: AssetJobInput = { sceneId, query };
+  await enqueueJob("ASSETS", { projectId: scene.projectId, input });
+  refresh();
+}

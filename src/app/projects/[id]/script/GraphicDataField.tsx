@@ -7,7 +7,9 @@ export function GraphicDataField({ defaultValue, disabled }: { defaultValue: str
   const [error, setError] = useState<string | null>(null);
   return (
     <details className="text-xs">
-      <summary className="cursor-pointer text-zinc-500">Data grafis (JSON, untuk pengguna tingkat lanjut)</summary>
+      <summary className="cursor-pointer text-muted hover:text-foreground">
+        Data grafis (JSON, untuk pengguna tingkat lanjut)
+      </summary>
       <textarea
         name="graphicData"
         defaultValue={defaultValue}
@@ -25,7 +27,7 @@ export function GraphicDataField({ defaultValue, disabled }: { defaultValue: str
           e.target.setCustomValidity(message);
           setError(message || null);
         }}
-        className="mt-1 w-full rounded-md border border-zinc-300 bg-transparent p-2 font-mono text-xs dark:border-zinc-700"
+        className="field mt-2 font-mono text-xs"
       />
       {error && <p className="mt-1 text-red-600 dark:text-red-400">{error}</p>}
     </details>

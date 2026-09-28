@@ -1,11 +1,16 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Badge, Card, Notice, ProgressBar } from "@/components/ui";
 import { db } from "@/lib/db";
-import { jobKindLabel, projectStatusLabel } from "@/lib/labels";
+import { jobKindLabel, projectStatusLabel, projectStatusTone, styleOptions } from "@/lib/labels";
 import { isSceneJob } from "@/lib/queue";
+import { completedStages, STAGES } from "@/lib/stages";
 import { retryFailedStage } from "./actions";
 import { StepNav } from "./StepNav";
+
+const styleLabel = Object.fromEntries(styleOptions.map((o) => [o.value, o.label]));
 
 export default async function ProjectLayout({ children, params }: LayoutProps<"/projects/[id]">) {
   await connection();
@@ -22,57 +27,63 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
     project.status === "FAILED"
       ? project.jobs.find((j) => j.status === "FAILED" && j.kind === project.failedStage)
       : undefined;
+  const done = completedStages(project.status, project.failedStage);
+  const steps = STAGES.map((stage, i) => ({ slug: stage.slug, label: stage.label, done: done[i] }));
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">{project.topic}</h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            {project.targetMinutes} menit · {project.language === "en" ? "English" : "Bahasa Indonesia"} ·{" "}
-            gaya {project.tone}
-          </p>
+      <div className="space-y-3">
+        <Link href="/" className="text-xs text-muted hover:text-foreground">
+          ← Semua proyek
+        </Link>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-balance">{project.topic}</h1>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <span>{project.targetMinutes} menit</span>
+              <span aria-hidden>·</span>
+              <span>{project.language === "en" ? "English" : "Bahasa Indonesia"}</span>
+              <span aria-hidden>·</span>
+              <span>Gaya {project.tone}</span>
+              <span aria-hidden>·</span>
+              <span>{styleLabel[project.style] ?? project.style}</span>
+            </div>
+          </div>
+          <Badge tone={projectStatusTone[project.status]}>{projectStatusLabel[project.status]}</Badge>
         </div>
-        <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs dark:bg-zinc-800">
-          {projectStatusLabel[project.status]}
-        </span>
       </div>
 
-      <StepNav projectId={project.id} />
+      <StepNav projectId={project.id} steps={steps} />
 
       {stageJob && (
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">
+        <Card className="space-y-2.5 p-4">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="flex items-center gap-2 font-medium">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-accent" aria-hidden />
               {jobKindLabel[stageJob.kind]} {stageJob.status === "QUEUED" ? "menunggu antrian" : "sedang berjalan"}
             </span>
-            <span className="text-zinc-500">{stageJob.progress}%</span>
+            <span className="text-muted tabular-nums">{stageJob.progress}%</span>
           </div>
-          <div className="mt-2 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800">
-            <div
-              className="h-1.5 rounded-full bg-zinc-900 transition-all dark:bg-zinc-100"
-              style={{ width: `${stageJob.progress}%` }}
-            />
-          </div>
-          {stageJob.error && <p className="mt-2 text-xs text-amber-600">{stageJob.error}</p>}
-        </div>
+          <ProgressBar value={stageJob.progress} />
+          {stageJob.error && <p className="text-xs text-amber-700 dark:text-amber-400">{stageJob.error}</p>}
+        </Card>
       )}
 
       {project.status === "FAILED" && !stageJob && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-300 p-4 text-sm dark:border-red-900">
-          <div>
-            <div className="font-medium text-red-700 dark:text-red-400">
-              Tahap {project.failedStage ? jobKindLabel[project.failedStage] : ""} gagal
-            </div>
-            {failedJob?.error && <p className="mt-1 text-zinc-600 dark:text-zinc-400">{failedJob.error}</p>}
-          </div>
-          <form action={retryFailedStage.bind(null, project.id)}>
-            <SubmitButton pendingText="Mengulang...">Coba lagi</SubmitButton>
-          </form>
-        </div>
+        <Notice
+          tone="danger"
+          title={`Tahap ${project.failedStage ? jobKindLabel[project.failedStage] : ""} gagal`}
+          action={
+            <form action={retryFailedStage.bind(null, project.id)}>
+              <SubmitButton pendingText="Mengulang...">Coba lagi</SubmitButton>
+            </form>
+          }
+        >
+          {failedJob?.error}
+        </Notice>
       )}
 
-      {children}
+      <div>{children}</div>
     </div>
   );
 }

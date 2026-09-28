@@ -28,8 +28,8 @@ export function VoiceStyleField({
             onClick={() => setStyle(preset.style)}
             className={`rounded-full px-3 py-1 text-xs font-medium ${
               style.trim() === preset.style
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                : "border border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                ? "bg-brand text-brand-foreground"
+                : "border border-border bg-surface text-muted hover:bg-surface-muted hover:text-foreground"
             }`}
           >
             {preset.label}

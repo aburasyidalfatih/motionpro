@@ -26,7 +26,7 @@ export function VideoPreview({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-hidden rounded-xl border border-border bg-black shadow-sm">
         <Player
           component={HistoryVideo}
           inputProps={inputProps}
@@ -38,14 +38,17 @@ export function VideoPreview({
           style={{ width: "100%", aspectRatio: `${VIDEO_WIDTH} / ${VIDEO_HEIGHT}` }}
         />
       </div>
-      <form action={renderAction} className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm">
+      <form
+        action={renderAction}
+        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-xs"
+      >
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
           <input
             type="checkbox"
             name="subtitles"
             checked={subtitles}
             onChange={(e) => setSubtitles(e.target.checked)}
-            className="h-4 w-4"
+            className="h-4 w-4 accent-[var(--accent)]"
           />
           Subtitle ditanam di video
         </label>

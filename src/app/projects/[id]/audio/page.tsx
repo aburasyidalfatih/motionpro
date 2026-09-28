@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Badge, ButtonLink, Card, EmptyState, FieldLabel, Notice, ProgressBar, SectionHeader } from "@/components/ui";
 import { db } from "@/lib/db";
 import { moodLabel } from "@/lib/labels";
 import { libraryUrl, listMusic, listSfx, type LibraryTrack } from "@/lib/library";
@@ -23,8 +23,6 @@ import type { Voice } from "@/lib/tts/voices";
 import { revoiceScene, saveMusic, saveVoiceSettings, startAudio, startVoiceSamples } from "./actions";
 import { VoicePicker } from "./VoicePicker";
 import { VoiceStyleField } from "./VoiceStyleField";
-
-const field = "mt-1 w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700";
 
 async function loadProject(id: string) {
   return db.project.findUnique({
@@ -82,13 +80,11 @@ function AudioBody({
 
   if (scenes.length === 0) {
     return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Voice over dibuat dari naskah.{" "}
-        <Link href={`/projects/${project.id}/script`} className="underline">
-          Tulis naskah dulu
-        </Link>
-        .
-      </p>
+      <EmptyState
+        title="Voice over dibuat dari naskah"
+        description="Setelah naskah ditulis, setiap adegan dibacakan oleh narator pilihan Anda."
+        action={<ButtonLink href={`/projects/${project.id}/script`}>Ke tahap naskah</ButtonLink>}
+      />
     );
   }
 
@@ -107,134 +103,145 @@ function AudioBody({
     : [...VOICES, { name: currentVoice, gender: "pria", note: "diisi manual" }];
 
   return (
-    <div className="space-y-10">
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Suara narator</h2>
-        <VoiceSampleStatus samples={samples} />
-        <form action={saveVoiceSettings.bind(null, project.id)} className="grid max-w-4xl gap-5">
-          <div className="text-sm font-medium">
-            Suara Gemini TTS
-            <div className="mt-2 font-normal">
-              <VoicePicker voices={voiceOptions} defaultValue={currentVoice} samples={samples.urls} />
-            </div>
-          </div>
+    <div className="space-y-8">
+      <Card>
+        <div className="space-y-1 border-b border-border px-5 py-4">
+          <h2 className="text-lg font-semibold">Suara narator</h2>
+          <VoiceSampleStatus samples={samples} />
+        </div>
+        <form action={saveVoiceSettings.bind(null, project.id)} className="space-y-6 px-5 py-5">
+          <VoicePicker voices={voiceOptions} defaultValue={currentVoice} samples={samples.urls} />
           {/* Bukan <label> pembungkus: klik pada label akan menekan tombol preset pertama. */}
-          <div className="max-w-2xl text-sm font-medium">
-            <label htmlFor="voiceStyle">Gaya bicara (opsional)</label>
+          <div className="max-w-2xl">
+            <FieldLabel htmlFor="voiceStyle">Gaya bicara (opsional)</FieldLabel>
             <VoiceStyleField
               id="voiceStyle"
               defaultValue={project.voiceStyle ?? DEFAULT_VOICE_STYLE}
               presets={VOICE_STYLE_PRESETS}
               placeholder={`Misalnya: ${VOICE_STYLE_EXAMPLE}`}
-              className={field}
+              className="field mt-2"
             />
-            <span className="mt-1 block text-xs font-normal text-zinc-500">
+            <p className="mt-1.5 text-xs leading-relaxed text-muted">
               Pilih preset atau tulis sendiri; kosongkan agar narasi dibacakan apa adanya. Instruksi gaya kadang ikut
               terbaca; bila terdeteksi, adegan itu dicoba ulang, dan baru dibacakan tanpa instruksi bila masih terbaca.
-            </span>
-          </div>
-          <div>
-            <SubmitButton variant="secondary" pendingText="Menyimpan...">
-              Simpan pengaturan suara
-            </SubmitButton>
-          </div>
-        </form>
-        <p className="text-xs text-zinc-500">
-          Setelah mengganti suara atau gaya, klik <span className="font-medium">Samakan</span> di bawah agar semua
-          adegan memakai suara yang sama. Volume tiap adegan disamakan otomatis.
-        </p>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">Voice over per adegan</h2>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {voiced} dari {scenes.length} adegan sudah bersuara · total durasi {formatDuration(totalMs)}
             </p>
           </div>
-          <div className="flex gap-2">
-            {outdated.size > 0 && (
-              <form action={startAudio.bind(null, project.id, "outdated")}>
-                <SubmitButton disabled={busy} pendingText="Memulai...">
-                  Samakan {outdated.size} adegan
-                </SubmitButton>
-              </form>
-            )}
-            {voiced > 0 && (
-              <form action={startAudio.bind(null, project.id, "all")}>
-                <SubmitButton variant="secondary" disabled={busy} pendingText="Memulai...">
-                  Buat ulang semua
-                </SubmitButton>
-              </form>
-            )}
-            {voiced < scenes.length && (
-              <form action={startAudio.bind(null, project.id, "missing")}>
-                <SubmitButton disabled={busy} pendingText="Memulai...">
-                  Buat voice over ({scenes.length - voiced} adegan)
-                </SubmitButton>
-              </form>
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+            <p className="text-xs text-muted">
+              Setelah mengganti suara atau gaya, klik <span className="font-medium text-foreground">Samakan</span> di
+              bawah. Volume tiap adegan disamakan otomatis.
+            </p>
+            <SubmitButton pendingText="Menyimpan...">Simpan pengaturan suara</SubmitButton>
           </div>
-        </div>
-
-        {outdated.size > 0 && (
-          <p className="rounded-md border border-amber-300 p-3 text-sm text-amber-700 dark:border-amber-800 dark:text-amber-400">
-            {outdated.size} adegan dibuat dengan suara atau gaya bicara yang berbeda dari pengaturan sekarang, jadi
-            narasinya terdengar tidak konsisten. Klik <span className="font-medium">Samakan</span> untuk membuat ulang
-            adegan itu saja.
-          </p>
-        )}
-
-        <ol className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-          {scenes.map((scene, index) => (
-            <li key={scene.id} className="grid gap-3 p-3 md:grid-cols-[1fr_320px] md:items-center">
-              <div className="text-sm">
-                <span className="text-xs text-zinc-500">
-                  Adegan {index + 1} · {formatDuration(scene.durationMs ?? 0)}
-                  {!scene.voiceover && " (perkiraan)"}
-                </span>
-                {scene.voiceover && outdated.has(scene.id) && (
-                  <span className="ml-2 text-xs text-amber-600">
-                    suara lain: {scene.voiceover.voiceId}
-                    {scene.voiceover.voiceStyle ? ` · ${scene.voiceover.voiceStyle}` : ""}
-                  </span>
-                )}
-                <p className="line-clamp-2">{scene.narration}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {revoicing.has(scene.id) ? (
-                  <span className="flex-1 text-xs text-amber-600">Membuat suara...</span>
-                ) : scene.voiceover ? (
-                  <audio controls preload="none" src={fileUrl(scene.voiceover.audioPath)} className="h-9 flex-1" />
-                ) : (
-                  <span className="flex-1 text-xs text-zinc-500">Belum ada suara</span>
-                )}
-                <form action={revoiceScene.bind(null, scene.id)}>
-                  <SubmitButton
-                    variant="secondary"
-                    size="sm"
-                    disabled={busy || revoicing.has(scene.id)}
-                    pendingText="..."
-                    title="Buat ulang suara adegan ini"
-                  >
-                    {scene.voiceover ? "Ulang" : "Buat"}
-                  </SubmitButton>
-                </form>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </section>
+        </form>
+      </Card>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Musik latar dan efek suara</h2>
+        <SectionHeader
+          title="Voice over per adegan"
+          description={`${voiced} dari ${scenes.length} adegan sudah bersuara · total durasi ${formatDuration(totalMs)}`}
+          actions={
+            <>
+              {voiced > 0 && (
+                <form action={startAudio.bind(null, project.id, "all")}>
+                  <SubmitButton variant="secondary" disabled={busy} pendingText="Memulai...">
+                    Buat ulang semua
+                  </SubmitButton>
+                </form>
+              )}
+              {outdated.size > 0 && (
+                <form action={startAudio.bind(null, project.id, "outdated")}>
+                  <SubmitButton disabled={busy} pendingText="Memulai...">
+                    Samakan {outdated.size} adegan
+                  </SubmitButton>
+                </form>
+              )}
+              {voiced < scenes.length && (
+                <form action={startAudio.bind(null, project.id, "missing")}>
+                  <SubmitButton disabled={busy} pendingText="Memulai...">
+                    Buat voice over ({scenes.length - voiced} adegan)
+                  </SubmitButton>
+                </form>
+              )}
+            </>
+          }
+        />
+
+        {outdated.size > 0 && (
+          <Notice tone="warning" title={`${outdated.size} adegan memakai suara atau gaya bicara lain`}>
+            Narasinya terdengar tidak konsisten dengan adegan lain. Klik <span className="font-medium">Samakan</span>{" "}
+            untuk membuat ulang adegan itu saja.
+          </Notice>
+        )}
+
+        <Card>
+          <ol className="divide-y divide-border">
+            {scenes.map((scene, index) => (
+              <li key={scene.id} className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_340px] md:items-center">
+                <div className="flex min-w-0 gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[11px] font-semibold tabular-nums">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 space-y-1 text-sm">
+                    <p className="line-clamp-2 leading-relaxed">{scene.narration}</p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                      <span className="tabular-nums">
+                        {formatDuration(scene.durationMs ?? 0)}
+                        {!scene.voiceover && " (perkiraan)"}
+                      </span>
+                      {scene.voiceover && outdated.has(scene.id) && (
+                        <Badge tone="warning">
+                          suara lain: {scene.voiceover.voiceId}
+                          {scene.voiceover.voiceStyle ? ` · ${scene.voiceover.voiceStyle}` : ""}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {revoicing.has(scene.id) ? (
+                    <span className="flex flex-1 items-center gap-2 text-xs text-accent">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-accent" aria-hidden />
+                      Membuat suara...
+                    </span>
+                  ) : scene.voiceover ? (
+                    <audio
+                      controls
+                      preload="none"
+                      src={fileUrl(scene.voiceover.audioPath)}
+                      className="h-9 min-w-0 flex-1"
+                    />
+                  ) : (
+                    <span className="flex-1 text-xs text-muted">Belum ada suara</span>
+                  )}
+                  <form action={revoiceScene.bind(null, scene.id)}>
+                    <SubmitButton
+                      variant="secondary"
+                      size="sm"
+                      disabled={busy || revoicing.has(scene.id)}
+                      pendingText="…"
+                      title="Buat ulang suara adegan ini"
+                    >
+                      {scene.voiceover ? "Ulang" : "Buat"}
+                    </SubmitButton>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Card>
+      </section>
+
+      <Card className="space-y-4 px-5 py-5">
+        <SectionHeader
+          title="Musik latar dan efek suara"
+          description={`Musik otomatis mengecil saat narasi berbicara, dan ${sfxCount} efek suara dari library/sfx/ dipasang di transisi. Keduanya diterapkan saat render.`}
+        />
         {music.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Library musik masih kosong. Unduh musik dari YouTube Audio Library, lalu simpan di folder{" "}
-            <code>library/music/&lt;suasana&gt;/</code>, misalnya <code>library/music/epic/</code>. Lihat{" "}
-            <code>library/README.md</code>.
-          </p>
+          <Notice tone="info" title="Library musik masih kosong">
+            Unduh musik dari YouTube Audio Library, lalu simpan di folder <code>library/music/&lt;suasana&gt;/</code>,
+            misalnya <code>library/music/epic/</code>. Lihat <code>library/README.md</code>.
+          </Notice>
         ) : (
           <form
             // Dipasang ulang saat musik dipilih otomatis oleh worker, agar pilihan terbaru tampil.
@@ -242,9 +249,9 @@ function AudioBody({
             action={saveMusic.bind(null, project.id)}
             className="flex max-w-2xl flex-wrap items-end gap-3"
           >
-            <label className="block flex-1 text-sm font-medium">
-              Musik latar
-              <select name="musicTrack" defaultValue={project.musicTrack ?? ""} className={field}>
+            <div className="min-w-60 flex-1">
+              <FieldLabel htmlFor="musicTrack">Musik latar</FieldLabel>
+              <select id="musicTrack" name="musicTrack" defaultValue={project.musicTrack ?? ""} className="field">
                 <option value="">Tanpa musik</option>
                 {music.map((t) => (
                   <option key={t.path} value={t.path}>
@@ -252,7 +259,7 @@ function AudioBody({
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
             <SubmitButton variant="secondary" pendingText="Menyimpan...">
               Simpan
             </SubmitButton>
@@ -261,11 +268,11 @@ function AudioBody({
         {currentTrack && (
           <audio controls preload="none" src={libraryUrl(`music/${currentTrack.path}`)} className="w-full max-w-2xl" />
         )}
-        <p className="text-xs text-zinc-500">
-          Musik otomatis mengecil saat narasi berbicara, dan {sfxCount} efek suara dari <code>library/sfx/</code>{" "}
-          dipasang di transisi. Keduanya diterapkan saat render.
-        </p>
-      </section>
+      </Card>
+
+      <div className="flex justify-end">
+        <ButtonLink href={`/projects/${project.id}/render`}>Lanjut ke render →</ButtonLink>
+      </div>
     </div>
   );
 }
@@ -273,17 +280,19 @@ function AudioBody({
 function VoiceSampleStatus({ samples }: { samples: VoiceSamples }) {
   const { job, missing } = samples;
   if (job?.status === "QUEUED" || job?.status === "RUNNING") {
-    return <p className="text-sm text-amber-600">Membuat contoh suara... {job.progress}%</p>;
-  }
-  if (missing === 0) {
     return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Klik ▶ untuk mendengar contoh suara (dibacakan tanpa gaya bicara).
-      </p>
+      <div className="flex max-w-sm items-center gap-3 text-sm text-muted">
+        <span>Membuat contoh suara...</span>
+        <ProgressBar value={job.progress} className="flex-1" />
+        <span className="tabular-nums">{job.progress}%</span>
+      </div>
     );
   }
+  if (missing === 0) {
+    return <p className="text-sm text-muted">Klik ▶ untuk mendengar contoh suara (dibacakan tanpa gaya bicara).</p>;
+  }
   return (
-    <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
+    <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
       <span>
         {missing} dari {VOICES.length} suara belum punya contoh. Contoh dibuat sekali lalu dipakai semua proyek.
       </span>
@@ -292,7 +301,9 @@ function VoiceSampleStatus({ samples }: { samples: VoiceSamples }) {
           Buat contoh suara
         </SubmitButton>
       </form>
-      {job?.status === "FAILED" && <span className="w-full text-xs text-red-600">Gagal: {job.error}</span>}
+      {job?.status === "FAILED" && (
+        <span className="w-full text-xs text-red-600 dark:text-red-400">Gagal: {job.error}</span>
+      )}
     </div>
   );
 }

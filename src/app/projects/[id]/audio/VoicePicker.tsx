@@ -60,8 +60,8 @@ export function VoicePicker({
             onClick={() => setFilter(f.value)}
             className={`rounded-full px-3 py-1 text-xs font-medium ${
               filter === f.value
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                : "border border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                ? "bg-brand text-brand-foreground"
+                : "border border-border bg-surface text-muted hover:bg-surface-muted hover:text-foreground"
             }`}
           >
             {f.label}
@@ -77,11 +77,7 @@ export function VoicePicker({
               key={voice.name}
               className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm ${
                 visible(voice, filter) || checked ? "" : "hidden"
-              } ${
-                checked
-                  ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-800"
-                  : "border-zinc-200 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
-              }`}
+              } ${checked ? "border-accent bg-accent-soft" : "border-border bg-surface hover:border-accent/50"}`}
             >
               <input
                 type="radio"
@@ -89,11 +85,11 @@ export function VoicePicker({
                 value={voice.name}
                 checked={checked}
                 onChange={() => setSelected(voice.name)}
-                className="accent-zinc-900 dark:accent-zinc-100"
+                className="accent-[var(--accent)]"
               />
               <span className="min-w-0 flex-1">
                 <span className="block font-medium">{voice.name}</span>
-                <span className="block text-xs text-zinc-500">
+                <span className="block text-xs text-muted">
                   {voice.gender} · {voice.note}
                 </span>
               </span>
@@ -103,7 +99,7 @@ export function VoicePicker({
                 disabled={!sample}
                 title={sample ? `Putar contoh suara ${voice.name}` : "Contoh suara belum dibuat"}
                 aria-label={playing === voice.name ? "Hentikan contoh" : "Putar contoh"}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-300 text-xs hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-30 dark:border-zinc-700 dark:hover:bg-zinc-700"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-xs transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-30"
               >
                 {playing === voice.name ? "■" : "▶"}
               </button>

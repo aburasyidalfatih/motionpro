@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { ButtonLink, EmptyState, SectionHeader } from "@/components/ui";
 import { VideoCard } from "@/components/VideoCard";
 import { db } from "@/lib/db";
 
@@ -12,17 +13,22 @@ export default async function GalleryPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Galeri</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Video yang sudah dirender, siap diunduh. Unggah ke YouTube hadir di Fase 4.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <SectionHeader
+        as="h1"
+        title="Galeri"
+        description="Video yang sudah dirender, siap diunduh. Unggah ke YouTube hadir di Fase 4."
+      />
       {videos.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-zinc-300 p-10 text-center text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
-          Belum ada video. Render video dari tab <span className="font-medium">Render</span> di halaman proyek.
-        </div>
+        <EmptyState
+          title="Belum ada video"
+          description="Render video dari tab Render di halaman proyek; hasilnya muncul di sini."
+          action={
+            <ButtonLink href="/" variant="secondary">
+              Buka proyek
+            </ButtonLink>
+          }
+        />
       ) : (
         <ul className="grid gap-4 md:grid-cols-2">
           {videos.map((video) => (

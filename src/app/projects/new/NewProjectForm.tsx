@@ -5,14 +5,13 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { styleOptions, toneOptions } from "@/lib/labels";
 import { createProject, type NewProjectState } from "./actions";
 
-const field =
-  "mt-1 w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700";
+const field = "field mt-1.5";
 
 export function NewProjectForm() {
   const [state, action] = useActionState<NewProjectState, FormData>(createProject, {});
 
   return (
-    <form action={action} className="max-w-xl space-y-5">
+    <form action={action} className="space-y-5">
       <label className="block text-sm font-medium">
         Topik video
         <input
@@ -55,12 +54,18 @@ export function NewProjectForm() {
         {styleOptions.map((option, i) => (
           <label
             key={option.value}
-            className="flex cursor-pointer gap-3 rounded-md border border-zinc-300 p-3 text-sm has-[:checked]:border-zinc-900 dark:border-zinc-700 dark:has-[:checked]:border-zinc-100"
+            className="flex cursor-pointer gap-3 rounded-lg border border-border p-3 text-sm transition hover:border-accent/50 has-[:checked]:border-accent has-[:checked]:bg-accent-soft"
           >
-            <input type="radio" name="style" value={option.value} defaultChecked={i === 0} className="mt-1" />
+            <input
+              type="radio"
+              name="style"
+              value={option.value}
+              defaultChecked={i === 0}
+              className="mt-1 accent-[var(--accent)]"
+            />
             <span>
               <span className="font-medium">{option.label}</span>
-              <span className="block text-zinc-600 dark:text-zinc-400">{option.description}</span>
+              <span className="block text-muted">{option.description}</span>
             </span>
           </label>
         ))}
@@ -68,7 +73,9 @@ export function NewProjectForm() {
 
       {state.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 
-      <SubmitButton pendingText="Membuat proyek...">Buat proyek dan mulai riset</SubmitButton>
+      <div className="border-t border-border pt-5">
+        <SubmitButton pendingText="Membuat proyek...">Buat proyek dan mulai riset →</SubmitButton>
+      </div>
     </form>
   );
 }

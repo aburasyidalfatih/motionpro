@@ -1,54 +1,70 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import { Badge, ButtonLink, EmptyState, SectionHeader } from "@/components/ui";
 import { db } from "@/lib/db";
-import { projectStatusLabel } from "@/lib/labels";
+import { projectStatusLabel, projectStatusTone, styleOptions } from "@/lib/labels";
+import { completedStages, STAGES } from "@/lib/stages";
+
+const styleLabel = Object.fromEntries(styleOptions.map((o) => [o.value, o.label]));
 
 export default async function ProjectsPage() {
   await connection();
   const projects = await db.project.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Proyek</h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Setiap proyek adalah satu video: dari riset topik sampai siap diunggah ke YouTube.
-          </p>
-        </div>
-        <Link
-          href="/projects/new"
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
-          Proyek baru
-        </Link>
-      </div>
+    <div className="space-y-8">
+      <SectionHeader
+        as="h1"
+        title="Proyek"
+        description="Setiap proyek adalah satu video: dari riset topik sampai siap diunggah ke YouTube."
+        actions={<ButtonLink href="/projects/new">+ Proyek baru</ButtonLink>}
+      />
 
       {projects.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-zinc-300 p-10 text-center text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
-          Belum ada proyek. Klik <span className="font-medium">Proyek baru</span> untuk mulai dari sebuah topik
-          sejarah.
-        </div>
+        <EmptyState
+          title="Belum ada proyek"
+          description="Mulai dari sebuah topik sejarah militer atau geopolitik. Gemini akan merisetnya, lalu Anda memeriksa brief sebelum naskah ditulis."
+          action={<ButtonLink href="/projects/new">Buat proyek pertama</ButtonLink>}
+        />
       ) : (
-        <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-          {projects.map((project) => (
-            <li key={project.id}>
-              <Link
-                href={`/projects/${project.id}`}
-                className="flex items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900"
-              >
-                <div>
-                  <div className="font-medium">{project.topic}</div>
-                  <div className="text-xs text-zinc-500">
-                    {project.targetMinutes} menit · dibuat {project.createdAt.toLocaleDateString("id-ID")}
+        <ul className="grid gap-3">
+          {projects.map((project) => {
+            const done = completedStages(project.status, project.failedStage);
+            return (
+              <li key={project.id}>
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="group flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 shadow-xs transition hover:border-accent/50 hover:shadow-sm sm:flex-row sm:items-center sm:p-5"
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="truncate font-medium group-hover:text-accent">{project.topic}</div>
+                    <div className="text-xs text-muted">
+                      {project.targetMinutes} menit · {styleLabel[project.style] ?? project.style} · dibuat{" "}
+                      {project.createdAt.toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </div>
                   </div>
-                </div>
-                <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs dark:bg-zinc-800">
-                  {projectStatusLabel[project.status]}
-                </span>
-              </Link>
-            </li>
-          ))}
+                  <div className="flex items-center gap-4">
+                    <ol className="flex items-center gap-1" aria-label="Tahap yang selesai">
+                      {STAGES.map((stage, i) => (
+                        <li
+                          key={stage.slug}
+                          title={`${stage.label}${done[i] ? " selesai" : ""}`}
+                          className={`h-1.5 w-7 rounded-full ${done[i] ? "bg-accent" : "bg-surface-muted"}`}
+                        />
+                      ))}
+                    </ol>
+                    <Badge tone={projectStatusTone[project.status]} className="min-w-24 justify-center">
+                      {projectStatusLabel[project.status]}
+                    </Badge>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

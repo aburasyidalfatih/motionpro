@@ -3,35 +3,47 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const steps = [
-  { slug: "research", label: "1. Riset" },
-  { slug: "script", label: "2. Naskah" },
-  { slug: "storyboard", label: "3. Storyboard" },
-  { slug: "audio", label: "4. Audio" },
-  { slug: "render", label: "5. Render" },
-];
+export type Step = { slug: string; label: string; done: boolean };
 
-export function StepNav({ projectId }: { projectId: string }) {
+// Tab lima tahap produksi. Tahap yang sudah selesai diberi tanda centang.
+export function StepNav({ projectId, steps }: { projectId: string; steps: Step[] }) {
   const pathname = usePathname();
   return (
-    <nav className="flex flex-wrap gap-1 border-b border-zinc-200 text-sm dark:border-zinc-800">
-      {steps.map((step) => {
-        const href = `/projects/${projectId}/${step.slug}`;
-        const active = pathname === href;
-        return (
-          <Link
-            key={step.slug}
-            href={href}
-            className={`-mb-px border-b-2 px-3 py-2 ${
-              active
-                ? "border-zinc-900 font-medium dark:border-zinc-100"
-                : "border-transparent text-zinc-600 hover:text-foreground dark:text-zinc-400"
-            }`}
-          >
-            {step.label}
-          </Link>
-        );
-      })}
+    <nav className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <ol className="flex min-w-max gap-1 rounded-xl border border-border bg-surface p-1 shadow-xs">
+        {steps.map((step, i) => {
+          const href = `/projects/${projectId}/${step.slug}`;
+          const active = pathname === href;
+          return (
+            <li key={step.slug} className="flex-1">
+              <Link
+                href={href}
+                aria-current={active ? "step" : undefined}
+                className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm whitespace-nowrap transition ${
+                  active
+                    ? "bg-brand font-medium text-brand-foreground shadow-sm"
+                    : "text-muted hover:bg-surface-muted hover:text-foreground"
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold ${
+                    active
+                      ? "bg-brand-foreground/15"
+                      : step.done
+                        ? "bg-accent text-brand-foreground dark:text-[#14222d]"
+                        : "border border-border"
+                  }`}
+                >
+                  {step.done ? "✓" : i + 1}
+                </span>
+                {step.label}
+                {step.done && <span className="sr-only">(selesai)</span>}
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
     </nav>
   );
 }

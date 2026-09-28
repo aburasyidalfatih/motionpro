@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { SubmitButton } from "@/components/SubmitButton";
+import { ButtonLink, EmptyState, Notice, SectionHeader } from "@/components/ui";
 import { pexelsEnabled } from "@/lib/assets";
 import { needsAsset } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
@@ -39,13 +40,11 @@ function StoryboardBody({ project }: { project: ProjectData }) {
 
   if (scenes.length === 0) {
     return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Storyboard dibuat dari naskah.{" "}
-        <Link href={`/projects/${project.id}/script`} className="underline">
-          Tulis naskah dulu
-        </Link>
-        .
-      </p>
+      <EmptyState
+        title="Storyboard dibuat dari naskah"
+        description="Setelah naskah ditulis, adegan lukisan, foto arsip, dan footage mendapat aset di sini."
+        action={<ButtonLink href={`/projects/${project.id}/script`}>Ke tahap naskah</ButtonLink>}
+      />
     );
   }
 
@@ -57,68 +56,74 @@ function StoryboardBody({ project }: { project: ProjectData }) {
   const withAsset = assetScenes.filter(({ scene }) => scene.assets.some((a) => a.selected)).length;
   const unsearched = assetScenes.filter(({ scene }) => !scene.assets.some((a) => a.asset.provider !== "upload")).length;
   const hasFootage = assetScenes.some(({ scene }) => scene.visualType === "footage");
+  const next = <ButtonLink href={`/projects/${project.id}/audio`}>Lanjut ke audio →</ButtonLink>;
 
   const graphicNote = graphicCount > 0 && (
-    <p className="rounded-md border border-zinc-200 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+    <Notice tone="info">
       {graphicCount} adegan grafis (peta, teks kinetik, timeline, statistik, perbandingan, kutipan) digambar otomatis
       oleh template dan tidak butuh aset. Lihat hasilnya di tab{" "}
-      <Link href={`/projects/${project.id}/render`} className="underline">
+      <Link href={`/projects/${project.id}/render`} className="font-medium underline underline-offset-2">
         Render
       </Link>
       .
-    </p>
+    </Notice>
   );
 
   if (assetScenes.length === 0) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
+        <SectionHeader
+          title="Storyboard"
+          description="Semua adegan proyek ini grafis, jadi tidak ada aset yang perlu dicari."
+          actions={next}
+        />
         {graphicNote}
-        <Link
-          href={`/projects/${project.id}/audio`}
-          className="inline-block rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
-          Lanjut ke audio
-        </Link>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      <SectionHeader
+        title="Storyboard"
+        description={`${withAsset} dari ${assetScenes.length} adegan lukisan, arsip, dan footage punya aset. Klik gambar kecil untuk mengganti aset, cari ulang dengan kata kunci lain, atau unggah aset sendiri.`}
+        actions={
+          <>
+            {unsearched < assetScenes.length && (
+              <form action={startAssets.bind(null, project.id, true)}>
+                <SubmitButton
+                  variant="secondary"
+                  disabled={busy}
+                  pendingText="Memulai..."
+                  title="Kandidat hasil pencarian diganti; aset unggahan Anda tetap"
+                >
+                  Cari ulang semua
+                </SubmitButton>
+              </form>
+            )}
+            {unsearched > 0 ? (
+              <form action={startAssets.bind(null, project.id, false)}>
+                <SubmitButton disabled={busy} pendingText="Memulai...">
+                  Cari aset untuk {unsearched} adegan
+                </SubmitButton>
+              </form>
+            ) : (
+              next
+            )}
+          </>
+        }
+      />
+
       {graphicNote}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {withAsset} dari {assetScenes.length} adegan lukisan, arsip, dan footage punya aset. Klik gambar kecil untuk
-          mengganti aset, cari ulang dengan kata kunci lain, atau unggah aset sendiri.
-        </p>
-        <div className="flex gap-2">
-          {unsearched < assetScenes.length && (
-            <form action={startAssets.bind(null, project.id, true)}>
-              <SubmitButton
-                variant="secondary"
-                disabled={busy}
-                pendingText="Memulai..."
-                title="Kandidat hasil pencarian diganti; aset unggahan Anda tetap"
-              >
-                Cari ulang semua
-              </SubmitButton>
-            </form>
-          )}
-          {unsearched > 0 && (
-            <form action={startAssets.bind(null, project.id, false)}>
-              <SubmitButton disabled={busy} pendingText="Memulai...">
-                Cari aset untuk {unsearched} adegan
-              </SubmitButton>
-            </form>
-          )}
-        </div>
-      </div>
 
       {hasFootage && !pexelsEnabled() && (
-        <p className="rounded-md border border-amber-300 p-3 text-sm text-amber-700 dark:border-amber-800 dark:text-amber-400">
-          PEXELS_API_KEY belum diisi, jadi adegan footage memakai gambar dari Wikimedia Commons. Buat API key gratis di
-          https://www.pexels.com/api untuk footage video.
-        </p>
+        <Notice tone="warning" title="PEXELS_API_KEY belum diisi">
+          Adegan footage memakai gambar dari Wikimedia Commons. Buat API key gratis di{" "}
+          <a href="https://www.pexels.com/api" target="_blank" rel="noreferrer" className="underline">
+            pexels.com/api
+          </a>{" "}
+          untuk footage video.
+        </Notice>
       )}
 
       <ol className="space-y-4">

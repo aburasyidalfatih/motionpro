@@ -1,24 +1,54 @@
 @import "tailwindcss";
 
+/* Palet aplikasi senada dengan template video: navy ruang komando dan emas. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --background: #f6f5f1;
+  --surface: #ffffff;
+  --surface-muted: #efede7;
+  --foreground: #1b1f24;
+  --muted: #5d646d;
+  --border: #e2dfd7;
+  --brand: #14222d;
+  --brand-foreground: #ffffff;
+  --accent: #8f6a2f;
+  --accent-soft: #f3eadb;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0c1116;
+    --surface: #131a21;
+    --surface-muted: #1a232c;
+    --foreground: #e9e6df;
+    --muted: #9aa3ad;
+    --border: #25303a;
+    --brand: #e0b565;
+    --brand-foreground: #14222d;
+    --accent: #e0b565;
+    --accent-soft: #2a2417;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Kolom isian seragam di semua halaman. */
+@utility field {
+  @apply w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground shadow-xs outline-none transition placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:cursor-not-allowed disabled:opacity-60;
 }

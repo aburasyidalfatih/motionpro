@@ -12,6 +12,22 @@ export const projectStatusLabel: Record<ProjectStatus, string> = {
   FAILED: "Gagal",
 };
 
+// Warna badge status proyek (lihat Badge di components/ui.tsx).
+export const projectStatusTone: Record<
+  ProjectStatus,
+  "neutral" | "accent" | "info" | "success" | "warning" | "danger"
+> = {
+  DRAFT: "neutral",
+  RESEARCH_READY: "info",
+  SCRIPT_READY: "info",
+  ASSETS_READY: "info",
+  AUDIO_READY: "accent",
+  RENDERING: "warning",
+  RENDERED: "success",
+  PUBLISHED: "success",
+  FAILED: "danger",
+};
+
 export const jobKindLabel: Record<JobKind, string> = {
   PING: "Job uji",
   RESEARCH: "Riset",

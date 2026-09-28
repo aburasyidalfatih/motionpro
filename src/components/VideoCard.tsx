@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Video } from "@/generated/prisma/client";
 import { deleteVideo } from "@/app/projects/[id]/render/actions";
 import { SubmitButton } from "@/components/SubmitButton";
+import { buttonClass } from "@/components/ui";
 import { formatDuration } from "@/lib/projects";
 import { fileUrl } from "@/lib/storage";
 
@@ -25,40 +26,34 @@ export function VideoCard({ video, topic, projectId }: { video: Video; topic: st
   const name = slug(topic);
   const sizeMb = (Number(video.sizeBytes) / 1_000_000).toFixed(1);
   return (
-    <li className="space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+    <li className="overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
       <video
         controls
         preload="none"
         poster={video.thumbnailKey ? fileUrl(video.thumbnailKey) : undefined}
         src={fileUrl(video.storageKey)}
-        className="aspect-video w-full rounded-md bg-black"
+        className="aspect-video w-full bg-black"
       />
-      <div className="flex flex-wrap items-start justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-3 p-4">
         <div>
           {projectId ? (
-            <Link href={`/projects/${projectId}/render`} className="font-medium hover:underline">
+            <Link href={`/projects/${projectId}/render`} className="font-medium hover:text-accent">
               {topic}
             </Link>
           ) : (
             <div className="font-medium">{topic}</div>
           )}
-          <div className="text-xs text-zinc-500">
+          <div className="mt-1 text-xs text-muted">
             {formatDuration(video.durationMs)} · {video.width}×{video.height} · {video.fps} fps · {sizeMb} MB ·{" "}
             {video.createdAt.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <a
-            href={downloadUrl(video.storageKey, `${name}.mp4`)}
-            className="rounded-md bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-          >
+          <a href={downloadUrl(video.storageKey, `${name}.mp4`)} className={buttonClass("primary", "sm")}>
             Unduh MP4
           </a>
           {video.srtKey && (
-            <a
-              href={downloadUrl(video.srtKey, `${name}.srt`)}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-            >
+            <a href={downloadUrl(video.srtKey, `${name}.srt`)} className={buttonClass("secondary", "sm")}>
               SRT
             </a>
           )}

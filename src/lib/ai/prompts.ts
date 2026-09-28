@@ -61,8 +61,10 @@ const GRAPHIC_TYPES_GUIDE = `- "title": kartu judul (adegan pertama atau pembuka
 - "kinetic_text": kalimat kunci ditampilkan besar. Isi kinetic.lines (1–3 baris pendek, maksimal 6 kata per baris,
   diambil dari inti narasi) dan kinetic.emphasis (1–3 kata terpenting dari lines).
 - "map": adegan tentang lokasi, wilayah, pergerakan pasukan, jalur, atau posisi negara. Isi map dengan koordinat
-  lat/lng yang benar. Untuk konflik isi map.sides (nama pihak), points[].side, map.arrows (gerak pasukan/armada dari
-  indeks titik ke indeks titik) dan map.zones (wilayah kekuasaan, radiusKm) bila relevan.
+  lat/lng yang benar, dan points[].place dengan nama tempat masa kini lengkap dengan wilayah dan negara (koordinat
+  dicek ulang dengan nama itu di OpenStreetMap). Untuk konflik isi map.sides (nama pihak), points[].side,
+  map.arrows (gerak pasukan/armada dari indeks titik ke indeks titik) dan map.zones (wilayah kekuasaan, radiusKm)
+  bila relevan.
 - "timeline": kronologi beberapa peristiwa. Isi events (2–7 peristiwa: date singkat seperti "1825" atau "10 Nov",
   label maksimal 5 kata). onScreenText = judul timeline. Hanya satu tanggal? Jangan pakai "timeline": pakai
   "kinetic_text" dan isi timeline (penanda tanggal di pojok layar).

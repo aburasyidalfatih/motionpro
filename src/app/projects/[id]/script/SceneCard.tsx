@@ -15,7 +15,9 @@ function describeGraphic(g: GraphicData) {
   if (g.map) {
     const arrows = g.map.arrows?.length ? ` · ${g.map.arrows.length} panah` : "";
     const sides = g.map.sides?.length ? ` · ${g.map.sides.join(" vs ")}` : "";
-    parts.push(`Peta: ${g.map.caption} · ${g.map.points.map((p) => p.label).join(", ")}${arrows}${sides}`);
+    // ✓ = koordinat dari OpenStreetMap, ? = tebakan AI yang tidak ditemukan di OpenStreetMap.
+    const points = g.map.points.map((p) => `${p.label}${p.verified ? " ✓" : p.verified === false ? " ?" : ""}`);
+    parts.push(`Peta: ${g.map.caption} · ${points.join(", ")}${arrows}${sides}`);
   }
   if (g.events) parts.push(`Timeline: ${g.events.map((e) => e.date).join(" → ")}`);
   if (g.stats)

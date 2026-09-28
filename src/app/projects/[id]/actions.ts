@@ -33,6 +33,14 @@ export async function startScript(projectId: string) {
   redirect(`/projects/${projectId}/script`);
 }
 
+// Memeriksa ulang koordinat semua peta naskah lewat OpenStreetMap.
+export async function startGeocode(projectId: string) {
+  if (await hasActiveJob(projectId)) return;
+  const input: ScriptJobInput = { geocode: true };
+  await enqueueJob("SCRIPT", { projectId, input });
+  refresh();
+}
+
 export async function retryFailedStage(projectId: string) {
   const project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
   if (project.failedStage === "RESEARCH") return startResearch(projectId);

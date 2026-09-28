@@ -3,6 +3,7 @@ import { Prisma, type Scene } from "@/generated/prisma/client";
 import { scriptAI } from "@/lib/ai";
 import { moods, visualTypes, type GraphicData, type SceneDraft } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
+import { geocodeMap } from "@/lib/geocode";
 import { deleteVoiceover } from "@/lib/project-jobs";
 import { recomputeStatus } from "@/lib/project-status";
 import { asJson, estimateDurationMs, toProjectBrief } from "@/lib/projects";
@@ -46,18 +47,51 @@ function toDraft(scene: Scene): SceneDraft {
   };
 }
 
+// Koordinat peta dari OpenStreetMap, bukan tebakan AI (lihat lib/geocode.ts).
+async function geocodeDraft<T extends Partial<SceneDraft>>(draft: T): Promise<{ draft: T; verified: number }> {
+  if (!draft.map) return { draft, verified: 0 };
+  const { map, verified } = await geocodeMap(draft.map);
+  return { draft: { ...draft, map }, verified };
+}
+
+// Memeriksa ulang koordinat semua peta proyek, misalnya untuk naskah lama.
+// Tidak pernah melempar error: kegagalan job SCRIPT menandai proyek gagal dan
+// "coba lagi" akan menulis ulang seluruh naskah.
+async function geocodeProject(projectId: string, setProgress: (progress: number) => Promise<void>) {
+  const scenes = await db.scene.findMany({ where: { projectId }, orderBy: { order: "asc" } });
+  const maps = scenes.filter((s) => (s.graphicData as GraphicData | null)?.map);
+  let verified = 0;
+  let points = 0;
+  for (const [i, scene] of maps.entries()) {
+    try {
+      const graphic = scene.graphicData as GraphicData;
+      const result = await geocodeDraft(graphic);
+      verified += result.verified;
+      points += graphic.map?.points.length ?? 0;
+      await db.scene.update({ where: { id: scene.id }, data: { graphicData: asJson(result.draft) } });
+      await setProgress(((i + 1) / maps.length) * 100);
+    } catch (err) {
+      console.warn(`[geocode] adegan ${scene.id} dilewati: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return { maps: maps.length, points, verified };
+}
+
 // Naskah (F-09): ditulis hanya dari research brief, dipecah per adegan.
-// Dengan input.sceneId, hanya satu adegan yang ditulis ulang (F-10).
+// Dengan input.sceneId, hanya satu adegan yang ditulis ulang (F-10); dengan
+// input.geocode, hanya koordinat peta yang diperiksa ulang.
 export const script: JobHandler = async ({ run, setProgress }) => {
   if (!run.projectId) throw new UnrecoverableError("Job naskah tanpa proyek");
   const project = await db.project.findUniqueOrThrow({
     where: { id: run.projectId },
     include: { research: true },
   });
+  const input = (run.input ?? {}) as ScriptJobInput;
+  if (input.geocode) return geocodeProject(project.id, setProgress);
+
   const briefMarkdown = project.research?.markdown.trim();
   if (!briefMarkdown) throw new UnrecoverableError("Research brief belum ada atau kosong");
   const ai = scriptAI();
-  const input = (run.input ?? {}) as ScriptJobInput;
 
   if (input.sceneId) {
     const scenes = await db.scene.findMany({ where: { projectId: project.id }, orderBy: { order: "asc" } });
@@ -71,9 +105,10 @@ export const script: JobHandler = async ({ run, setProgress }) => {
       next: scenes[index + 1]?.narration,
       instruction: input.instruction ?? "",
     });
+    const { draft: located } = await geocodeDraft(draft);
     await db.scene.update({
       where: { id: input.sceneId },
-      data: sceneFields(normalizeScene(draft, project.style)),
+      data: sceneFields(normalizeScene(located, project.style)),
     });
     // Narasi berubah, jadi voice over lama tidak cocok lagi.
     await deleteVoiceover(input.sceneId);
@@ -83,12 +118,17 @@ export const script: JobHandler = async ({ run, setProgress }) => {
 
   await setProgress(10);
   const result = await ai.writeScript(toProjectBrief(project), briefMarkdown);
-  await setProgress(90);
+  await setProgress(80);
+  const drafts: SceneDraft[] = [];
+  for (const scene of result.scenes) {
+    drafts.push((await geocodeDraft(scene)).draft);
+    await setProgress(80 + (drafts.length / result.scenes.length) * 15);
+  }
 
   await db.$transaction(async (tx) => {
     await tx.scene.deleteMany({ where: { projectId: project.id } });
     await tx.scene.createMany({
-      data: result.scenes.map((draft, order) => ({
+      data: drafts.map((draft, order) => ({
         projectId: project.id,
         order,
         ...sceneFields(normalizeScene(draft, project.style)),

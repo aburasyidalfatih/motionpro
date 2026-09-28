@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { SubmitButton } from "@/components/SubmitButton";
+import type { GraphicData } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
 import { countWords, formatDuration } from "@/lib/projects";
 import { isSceneJob, type ScriptJobInput } from "@/lib/queue";
-import { startScript } from "../actions";
+import { startGeocode, startScript } from "../actions";
 import { SceneCard } from "./SceneCard";
 
 async function loadProject(id: string) {
@@ -67,6 +68,8 @@ function ScriptBody({ project }: { project: ProjectData }) {
     );
   }
 
+  const hasMaps = scenes.some((s) => (s.graphicData as GraphicData | null)?.map);
+  const geocoding = project.jobs.some((j) => (j.input as ScriptJobInput | null)?.geocode);
   const totalMs = scenes.reduce((sum, s) => sum + (s.durationMs ?? 0), 0);
   const totalWords = scenes.reduce((sum, s) => sum + countWords(s.narration), 0);
   const briefChanged = project.status === "RESEARCH_READY";
@@ -77,8 +80,21 @@ function ScriptBody({ project }: { project: ProjectData }) {
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           {scenes.length} adegan · {totalWords} kata · perkiraan durasi {formatDuration(totalMs)} (target{" "}
           {project.targetMinutes}:00). Durasi pasti mengikuti voice over di Fase 2.
+          {hasMaps && " Titik peta: ✓ koordinat dari OpenStreetMap, ? tebakan AI yang perlu diperiksa."}
         </p>
         <div className="flex gap-2">
+          {hasMaps && (
+            <form action={startGeocode.bind(null, project.id)}>
+              <SubmitButton
+                variant="secondary"
+                disabled={busy}
+                pendingText="Memulai..."
+                title="Cari ulang koordinat semua titik peta di OpenStreetMap"
+              >
+                Cek koordinat peta
+              </SubmitButton>
+            </form>
+          )}
           <form action={startScript.bind(null, project.id)}>
             <SubmitButton variant="secondary" disabled={busy} pendingText="Memulai...">
               Tulis ulang seluruh naskah
@@ -92,6 +108,10 @@ function ScriptBody({ project }: { project: ProjectData }) {
           </Link>
         </div>
       </div>
+
+      {geocoding && (
+        <p className="text-sm text-amber-600">Mencari koordinat titik peta di OpenStreetMap...</p>
+      )}
 
       {briefChanged && !busy && (
         <p className="rounded-md border border-amber-300 p-3 text-sm text-amber-700 dark:border-amber-800 dark:text-amber-400">

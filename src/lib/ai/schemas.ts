@@ -62,8 +62,16 @@ export const mapDataSchema = z.object({
   points: list(
     z.object({
       label: z.string(),
+      place: z
+        .string()
+        .optional()
+        .describe(
+          "Nama tempat masa kini untuk mencari koordinat, lengkap dengan wilayah dan negara, misalnya 'Tanjung Perak, Surabaya, Indonesia'. Nama kuno diganti nama sekarang: Batavia menjadi 'Jakarta, Indonesia'",
+        ),
       lat: z.number().min(-90).max(90),
       lng: z.number().min(-180).max(180),
+      // Diisi worker (lib/geocode.ts): true bila lat/lng berasal dari OpenStreetMap.
+      verified: z.boolean().optional().describe("Diisi sistem, jangan diisi"),
       side: z.number().int().optional().describe("Indeks pihak di sides bila titik milik salah satu pihak"),
     }),
     1,

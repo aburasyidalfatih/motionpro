@@ -17,10 +17,12 @@ export type PipelineJobData = {
 };
 
 // Input job SCRIPT: dengan sceneId hanya satu adegan yang ditulis ulang;
-// tanpa sceneId seluruh naskah ditulis dari research brief.
+// dengan geocode hanya koordinat peta yang diperiksa ulang; selain itu
+// seluruh naskah ditulis dari research brief.
 export type ScriptJobInput = {
   sceneId?: string;
   instruction?: string;
+  geocode?: boolean;
 };
 
 // Input job ASSETS: tanpa sceneId, cari aset untuk adegan yang belum punya

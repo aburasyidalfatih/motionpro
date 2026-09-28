@@ -4,18 +4,23 @@ import type { JobKind } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
   createRedis,
+  isSceneRewrite,
   PIPELINE_QUEUE,
   WORKER_HEARTBEAT_KEY,
   WORKER_HEARTBEAT_TTL_SECONDS,
   type PipelineJobData,
 } from "@/lib/queue";
 import { ping } from "./handlers/ping";
+import { research } from "./handlers/research";
+import { script } from "./handlers/script";
 import type { JobHandler } from "./types";
 
-// Handler per jenis job. Tahap lain (riset, naskah, aset, audio, render,
-// publish) ditambahkan di fase masing-masing.
+// Handler per jenis job. Tahap lain (aset, audio, render, publish)
+// ditambahkan di fase masing-masing.
 const handlers: Partial<Record<JobKind, JobHandler>> = {
   PING: ping,
+  RESEARCH: research,
+  SCRIPT: script,
 };
 
 // Render memakan hampir seluruh CPU, jadi default-nya satu job sekaligus.
@@ -64,14 +69,21 @@ worker.on("failed", async (job, err) => {
   if (!job) return;
   const attemptsLeft = (job.opts.attempts ?? 1) - job.attemptsMade;
   const final = attemptsLeft <= 0 || err instanceof UnrecoverableError;
-  await db.jobRun
+  const run = await db.jobRun
     .update({
       where: { id: job.data.jobRunId },
       data: final
         ? { status: "FAILED", error: err.message, finishedAt: new Date() }
         : { status: "QUEUED", error: `${err.message} (dicoba lagi)` },
     })
-    .catch(() => {});
+    .catch(() => null);
+  // Kegagalan tahap proyek menandai proyek FAILED; kegagalan menulis ulang
+  // satu adegan tidak, karena naskahnya tetap utuh.
+  if (final && run?.projectId && run.kind !== "PING" && !isSceneRewrite(run.input)) {
+    await db.project
+      .update({ where: { id: run.projectId }, data: { status: "FAILED", failedStage: run.kind } })
+      .catch(() => {});
+  }
   console.error(`[worker] job ${job.name} ${job.id} gagal: ${err.message}`);
 });
 

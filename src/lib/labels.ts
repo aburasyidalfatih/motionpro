@@ -22,6 +22,31 @@ export const jobKindLabel: Record<JobKind, string> = {
   PUBLISH: "Publish",
 };
 
+export const visualTypeLabel: Record<string, string> = {
+  title: "Kartu judul",
+  painting: "Lukisan",
+  archival_photo: "Foto arsip",
+  map: "Peta",
+  timeline: "Timeline",
+  footage: "Footage suasana",
+};
+
+export const moodLabel: Record<string, string> = {
+  epic: "Epik",
+  tense: "Tegang",
+  calm: "Tenang",
+  somber: "Muram",
+  hopeful: "Penuh harapan",
+  mysterious: "Misterius",
+};
+
+export const toneOptions = [
+  { value: "dokumenter", label: "Dokumenter (serius, sinematik)" },
+  { value: "dramatis", label: "Dramatis (bercerita, penuh ketegangan)" },
+  { value: "edukatif", label: "Edukatif (jelas, runtut)" },
+  { value: "santai", label: "Santai (ringan, bersahabat)" },
+];
+
 export const jobStatusLabel: Record<JobStatus, string> = {
   QUEUED: "Dalam antrian",
   RUNNING: "Berjalan",

@@ -2,7 +2,7 @@ import { connection } from "next/server";
 import { db } from "@/lib/db";
 import { getHealth, type Check } from "@/lib/health";
 import { jobKindLabel, jobStatusLabel } from "@/lib/labels";
-import { AutoRefresh } from "./AutoRefresh";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { TestJobButton } from "./TestJobButton";
 
 async function recentJobs() {

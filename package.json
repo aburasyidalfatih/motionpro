@@ -15,9 +15,11 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "check:ai": "tsx src/scripts/check-ai.ts"
   },
   "dependencies": {
+    "@google/genai": "^2.24.0",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@remotion/player": "4.0.529",

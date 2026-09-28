@@ -15,5 +15,7 @@ AI-assisted studio for history motion-graphic videos (Indonesian UI). Plan and p
 - Stack: Next.js 16 (App Router) + Tailwind 4, Prisma 7 (`prisma-client` generator, `@prisma/adapter-pg`, client in `src/generated/prisma`), BullMQ + ioredis, Remotion 4 (all `remotion`/`@remotion/*` packages pinned to the same exact version).
 - Web only enqueues jobs (`enqueueJob` in `src/lib/queue.ts`); the worker (`src/worker`) does the work and writes status/progress to `JobRun`. Add a pipeline stage by adding a handler to the `handlers` map in `src/worker/index.ts`.
 - Pages that read the database call `await connection()` so they are not prerendered at build time.
+- AI calls go through the `ScriptAI` interface (`src/lib/ai`): Gemini in production, `AI_PROVIDER=fake` for tests without an API key. Output shapes are zod schemas in `src/lib/ai/schemas.ts`, sent to Gemini as JSON Schema and used to validate the response.
+- Polling for job progress (`AutoRefresh`) lives in pages, not in `projects/[id]/layout.tsx`: layouts are not re-rendered when switching tabs inside a project.
 - Checks before committing: `npm run typecheck`, `npm run lint`, `npm run build`.
 - UI copy is in Indonesian.

@@ -49,3 +49,6 @@ next-env.d.ts
 # local media storage and remotion renders
 /storage/
 /out/
+
+# redis snapshot saat menjalankan redis-server lokal
+dump.rdb

@@ -16,6 +16,17 @@ export type PipelineJobData = {
   jobRunId: string;
 };
 
+// Input job SCRIPT: dengan sceneId hanya satu adegan yang ditulis ulang;
+// tanpa sceneId seluruh naskah ditulis dari research brief.
+export type ScriptJobInput = {
+  sceneId?: string;
+  instruction?: string;
+};
+
+export function isSceneRewrite(input: unknown) {
+  return Boolean((input as ScriptJobInput | null)?.sceneId);
+}
+
 // Koneksi worker wajib memakai maxRetriesPerRequest: null (syarat BullMQ).
 // Koneksi web memakai batas retry agar request gagal cepat saat Redis mati,
 // bukan menggantung.

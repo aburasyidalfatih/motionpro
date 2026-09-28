@@ -8,9 +8,10 @@ Rencana lengkap ada di [PRD MotionPro](https://claude.ai/code/artifact/2c3fda1a-
 
 ## Status
 
-**Fase 0 (Fondasi) selesai:** Next.js, Prisma + PostgreSQL, antrian BullMQ + Redis, worker, dan proyek Remotion dengan satu kartu judul. Halaman **Sistem** menampilkan status layanan dan bisa menjalankan job uji dari web → Redis → worker → database.
+- **Fase 0 (Fondasi):** Next.js, Prisma + PostgreSQL, antrian BullMQ + Redis, worker, Remotion. Halaman **Sistem** menampilkan status layanan dan menjalankan job uji.
+- **Fase 1 (Riset dan naskah):** proyek baru → riset otomatis dengan Gemini + Google Search → research brief bersumber yang bisa diedit → naskah per adegan (narasi, teks layar, kata kunci aset, tipe visual, data peta dan timeline) → editor adegan (edit, urutkan, tambah, hapus, tulis ulang satu adegan dengan Gemini).
 
-Berikutnya: Fase 1 (proyek baru, riset dengan Gemini, naskah per adegan).
+Berikutnya: Fase 2 (aset dan audio).
 
 ## Kebutuhan
 
@@ -18,7 +19,7 @@ Berikutnya: Fase 1 (proyek baru, riset dengan Gemini, naskah per adegan).
 - Docker Desktop (untuk PostgreSQL, Redis, dan MinIO)
 - Git
 
-Windows: pasang Docker Desktop dengan backend WSL2, dan jalankan perintah di bawah dari terminal WSL (Ubuntu) supaya perilakunya sama dengan VPS Linux nanti.
+Windows: pasang Docker Desktop (backend WSL2). Perintah di bawah bisa dijalankan dari PowerShell atau terminal WSL.
 
 ## Menjalankan di komputer lokal
 
@@ -41,6 +42,23 @@ npm run dev:all
 
 Buka http://localhost:3000/system. Ketiga indikator (Database, Antrian, Worker) harus hijau. Klik **Jalankan job uji** untuk memastikan antrian bekerja.
 
+Windows PowerShell: pakai `Copy-Item .env.example .env` untuk langkah 2, dan selalu jalankan perintah dari folder proyek.
+
+## API key Gemini (Fase 1)
+
+1. Buat API key di https://aistudio.google.com (**Get API key** → **Create API key**).
+2. Isi `GEMINI_API_KEY` di `.env`. Model default `gemini-3.8-flash`; ganti lewat `GEMINI_MODEL` bila perlu.
+3. Restart `npm run dev:all`, lalu buka **Proyek → Proyek baru**.
+
+Periksa kualitas riset dan naskah untuk 5 topik uji tanpa lewat UI (gate Fase 1):
+
+```bash
+npm run check:ai
+npm run check:ai -- "Topik lain"
+```
+
+Tanpa API key, isi `AI_PROVIDER=fake` di `.env` untuk menguji alur aplikasi dengan data contoh.
+
 ## Perintah
 
 | Perintah | Fungsi |
@@ -49,6 +67,7 @@ Buka http://localhost:3000/system. Ketiga indikator (Database, Antrian, Worker) 
 | `npm run dev` | Web saja, http://localhost:3000 |
 | `npm run worker` | Worker saja (restart otomatis saat kode berubah) |
 | `npm run studio` | Remotion Studio untuk mendesain dan mempratinjau template video |
+| `npm run check:ai` | Menguji riset dan naskah Gemini untuk 5 topik (gate Fase 1) |
 | `npm run db:migrate` | Membuat dan menjalankan migrasi database |
 | `npm run db:studio` | Melihat isi database di browser |
 | `npm run typecheck` | Pemeriksaan TypeScript |
@@ -72,7 +91,9 @@ prisma/
 src/
   app/                 Halaman Next.js (Proyek, Pratinjau template, Sistem) dan API
   lib/                 env, database, antrian, pemeriksaan kesehatan
-  worker/              Worker BullMQ dan handler per jenis job
+  lib/ai/              Gemini: prompt, skema output (zod), implementasi tiruan
+  worker/              Worker BullMQ dan handler per jenis job (riset, naskah)
+  scripts/             Skrip command line (check:ai)
   remotion/            Komposisi video Remotion
   generated/prisma/    Klien Prisma hasil generate (tidak di-commit)
 docker-compose.yml     PostgreSQL, Redis, MinIO

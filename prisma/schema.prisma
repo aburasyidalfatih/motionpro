@@ -99,18 +99,20 @@ model Project {
 }
 
 model ResearchBrief {
-  id        String   @id @default(cuid())
-  projectId String   @unique
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id                String   @id @default(cuid())
+  projectId         String   @unique
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   // Sub-pertanyaan riset, fakta kunci, timeline, dan calon hook (JSON dari Gemini).
-  questions Json     @default("[]")
-  facts     Json     @default("[]")
-  timeline  Json     @default("[]")
-  hooks     Json     @default("[]")
-  // Isi brief yang bisa diedit pengguna.
-  markdown  String   @default("")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  questions         Json     @default("[]")
+  facts             Json     @default("[]")
+  timeline          Json     @default("[]")
+  hooks             Json     @default("[]")
+  // Isi brief yang bisa diedit pengguna; dipakai sebagai dasar naskah.
+  markdown          String   @default("")
+  // HTML Google Search Suggestions dari grounding, wajib ditampilkan (F-08).
+  searchSuggestions Json     @default("[]")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   sources Source[]
 }
@@ -119,6 +121,8 @@ model Source {
   id         String        @id @default(cuid())
   briefId    String
   brief      ResearchBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  // Nomor sumber yang dirujuk sebagai [n] di brief.
+  position   Int
   title      String
   url        String
   origin     SourceOrigin  @default(SEARCH)
@@ -145,7 +149,7 @@ model Scene {
   assets    SceneAsset[]
   voiceover Voiceover?
 
-  @@unique([projectId, order])
+  @@index([projectId, order])
 }
 
 model Asset {

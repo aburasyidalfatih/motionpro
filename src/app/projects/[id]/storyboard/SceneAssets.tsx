@@ -1,7 +1,8 @@
-import type { Asset, Scene, SceneAsset } from "@/generated/prisma/client";
+import type { Asset, JobRun, Scene, SceneAsset } from "@/generated/prisma/client";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Badge } from "@/components/ui";
 import { visualTypeLabel } from "@/lib/labels";
+import type { AssetJobInput, AssetSearchResult } from "@/lib/queue";
 import { fileUrl } from "@/lib/storage";
 import { searchSceneAssets, selectAsset } from "./actions";
 
@@ -29,9 +30,60 @@ function Thumb({ asset, className }: { asset: Asset; className: string }) {
   return <img src={src} alt={asset.title ?? ""} loading="lazy" className={`${className} object-cover`} />;
 }
 
-export function SceneAssets({ scene, index, busy }: { scene: SceneWithAssets; index: number; busy: boolean }) {
+// Pesan status pencarian/unduhan terakhir adegan ini; tanpa ini tombol "Cari
+// ulang" terlihat tidak bereaksi karena pekerjaannya berjalan di worker.
+function jobStatus(job: JobRun | undefined, hasCandidates: boolean, hasSelection: boolean) {
+  if (!job) return null;
+  const input = (job.input ?? {}) as AssetJobInput;
+  const action = input.downloadOnly ? "Mengunduh aset" : "Mencari aset";
+  if (job.status === "QUEUED" || job.status === "RUNNING") {
+    return { tone: "busy" as const, text: `${action}...${job.error ? ` (${job.error})` : ""}` };
+  }
+  if (job.status === "FAILED") {
+    return {
+      tone: "error" as const,
+      text: `${input.downloadOnly ? "Unduhan" : "Pencarian"} gagal: ${job.error ?? "tanpa keterangan"}`,
+    };
+  }
+  const result = job.result as AssetSearchResult | null;
+  if (input.downloadOnly || !result || typeof result.found !== "number") return null;
+  if (result.found === 0) {
+    return {
+      tone: "warning" as const,
+      text: 'Tidak ada hasil untuk kata kunci ini; kandidat lama dipertahankan. Coba kata kunci yang lebih pendek dan umum, misalnya nama tokoh, kerajaan, atau "javanese painting".',
+    };
+  }
+  if (!hasSelection && hasCandidates) {
+    return {
+      tone: "warning" as const,
+      text: `${result.found} kandidat ditemukan, tapi tidak ada yang dinilai cocok dengan narasi. Klik gambar kecil untuk memakainya, atau cari dengan kata kunci lain.`,
+    };
+  }
+  return { tone: "ok" as const, text: `${result.found} kandidat ditemukan, ${result.relevant ?? 0} dinilai cocok.` };
+}
+
+const statusStyle = {
+  busy: "text-accent",
+  ok: "text-muted",
+  warning: "text-amber-700 dark:text-amber-400",
+  error: "text-red-700 dark:text-red-400",
+};
+
+export function SceneAssets({
+  scene,
+  index,
+  busy,
+  job,
+}: {
+  scene: SceneWithAssets;
+  index: number;
+  busy: boolean;
+  job?: JobRun;
+}) {
   const links = [...scene.assets].sort((a, b) => a.rank - b.rank);
   const selected = links.find((l) => l.selected)?.asset;
+  const status = jobStatus(job, links.length > 0, Boolean(selected));
+  const searching = status?.tone === "busy";
 
   return (
     <li
@@ -54,8 +106,12 @@ export function SceneAssets({ scene, index, busy }: { scene: SceneWithAssets; in
               <Thumb asset={selected} className="h-full w-full" />
             )
           ) : (
-            <div className="flex h-full items-center justify-center text-xs text-[#9fb0bf]">
-              {busy ? "Mencari aset..." : "Belum ada aset"}
+            <div className="flex h-full items-center justify-center px-6 text-center text-xs leading-relaxed text-[#9fb0bf]">
+              {busy || searching
+                ? "Mencari aset..."
+                : links.length > 0
+                  ? "Belum ada aset terpilih. Klik salah satu gambar kecil di samping untuk memakainya."
+                  : "Belum ada aset"}
             </div>
           )}
         </div>
@@ -106,6 +162,18 @@ export function SceneAssets({ scene, index, busy }: { scene: SceneWithAssets; in
           </div>
         )}
 
+        {status && (
+          <p className={`flex items-start gap-2 text-xs leading-relaxed ${statusStyle[status.tone]}`} role="status">
+            {status.tone === "busy" && (
+              <span
+                aria-hidden
+                className="mt-0.5 h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+              />
+            )}
+            {status.text}
+          </p>
+        )}
+
         <form action={searchSceneAssets.bind(null, scene.id)} key={scene.keywords.join(",")} className="flex gap-2">
           <input
             name="query"
@@ -113,8 +181,8 @@ export function SceneAssets({ scene, index, busy }: { scene: SceneWithAssets; in
             className="field h-8 flex-1 py-1"
             placeholder="Kata kunci bahasa Inggris, pisahkan dengan koma"
           />
-          <SubmitButton variant="secondary" size="sm" disabled={busy} pendingText="Mencari...">
-            Cari ulang
+          <SubmitButton variant="secondary" size="sm" disabled={busy || searching} pendingText="Mengirim...">
+            {searching ? "Mencari..." : "Cari ulang"}
           </SubmitButton>
         </form>
 

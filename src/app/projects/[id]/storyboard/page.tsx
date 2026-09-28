@@ -6,7 +6,8 @@ import { ButtonLink, EmptyState, Notice, SectionHeader } from "@/components/ui";
 import { pexelsEnabled } from "@/lib/assets";
 import { needsAsset } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
-import { isSceneJob } from "@/lib/queue";
+import type { JobRun } from "@/generated/prisma/client";
+import { isSceneJob, type AssetJobInput } from "@/lib/queue";
 import { startAssets } from "./actions";
 import { SceneAssets } from "./SceneAssets";
 
@@ -20,21 +21,37 @@ async function loadProject(id: string) {
   });
 }
 
+// Job aset terakhir per adegan (cari ulang atau unduh), untuk status di kartu adegan.
+async function latestSceneJobs(projectId: string) {
+  const jobs = await db.jobRun.findMany({
+    where: { projectId, kind: "ASSETS" },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+  const latest = new Map<string, JobRun>();
+  for (const job of jobs) {
+    const sceneId = (job.input as AssetJobInput | null)?.sceneId;
+    if (sceneId && !latest.has(sceneId)) latest.set(sceneId, job);
+  }
+  return latest;
+}
+
 type ProjectData = NonNullable<Awaited<ReturnType<typeof loadProject>>>;
 
 export default async function StoryboardPage({ params }: PageProps<"/projects/[id]/storyboard">) {
   const { id } = await params;
   const project = await loadProject(id);
   if (!project) notFound();
+  const sceneJobs = await latestSceneJobs(project.id);
   return (
     <>
       <AutoRefresh active={project.jobs.length > 0} />
-      <StoryboardBody project={project} />
+      <StoryboardBody project={project} sceneJobs={sceneJobs} />
     </>
   );
 }
 
-function StoryboardBody({ project }: { project: ProjectData }) {
+function StoryboardBody({ project, sceneJobs }: { project: ProjectData; sceneJobs: Map<string, JobRun> }) {
   const busy = project.jobs.some((j) => !isSceneJob(j.input));
   const scenes = project.scenes;
 
@@ -128,7 +145,7 @@ function StoryboardBody({ project }: { project: ProjectData }) {
 
       <ol className="space-y-4">
         {assetScenes.map(({ scene, index }) => (
-          <SceneAssets key={scene.id} scene={scene} index={index} busy={busy} />
+          <SceneAssets key={scene.id} scene={scene} index={index} busy={busy} job={sceneJobs.get(scene.id)} />
         ))}
       </ol>
     </div>

@@ -50,6 +50,14 @@ export type VoiceSamplesJobInput = {
   voices?: string[];
 };
 
+// Hasil job ASSETS "cari ulang" satu adegan, ditampilkan di storyboard.
+export type AssetSearchResult = {
+  sceneId: string;
+  found: number;
+  relevant?: number;
+  selected?: boolean;
+};
+
 // Input job RENDER.
 export type RenderJobInput = {
   subtitles?: boolean;

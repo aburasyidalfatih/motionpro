@@ -10,7 +10,7 @@ import { mapLimit } from "@/lib/async";
 import { db } from "@/lib/db";
 import { recomputeStatus } from "@/lib/project-status";
 import { toProjectBrief } from "@/lib/projects";
-import type { AssetJobInput } from "@/lib/queue";
+import type { AssetJobInput, AssetSearchResult } from "@/lib/queue";
 import type { JobHandler } from "../types";
 
 // Kandidat yang dinilai tidak relevan tetap disimpan (bisa dipilih manual),
@@ -124,10 +124,20 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
         .map((q) => q.trim())
         .filter(Boolean);
       const candidates = await findCandidates(scene.visualType, queries.length ? queries : scene.keywords);
+      // Tanpa hasil: kandidat lama dipertahankan, halaman memberi tahu pengguna.
+      if (candidates.length === 0) return { sceneId: scene.id, found: 0 } satisfies AssetSearchResult;
       const ranked = await rankCandidates(brief, [{ scene, candidates }]);
+      const items = ranked.get(scene.id) ?? [];
       await db.sceneAsset.deleteMany({ where: { sceneId: scene.id, selected: false } });
-      await attachCandidates(scene.id, ranked.get(scene.id) ?? []);
-      if (!scene.assets.some((a) => a.selected)) await selectFirstDownloadable(scene.id);
+      await attachCandidates(scene.id, items);
+      const selected = scene.assets.some((a) => a.selected) || (await selectFirstDownloadable(scene.id));
+      await recomputeStatus(project.id);
+      return {
+        sceneId: scene.id,
+        found: candidates.length,
+        relevant: items.filter((i) => i.rank < IRRELEVANT_RANK).length,
+        selected,
+      } satisfies AssetSearchResult;
     }
     await recomputeStatus(project.id);
     return { sceneId: scene.id };

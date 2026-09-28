@@ -20,12 +20,21 @@ function candidates(query: string, limit: number, kind: "IMAGE" | "VIDEO"): Asse
   }));
 }
 
+// Kata kunci khusus untuk menguji tampilan storyboard: "kosong" tanpa hasil,
+// "gagal" melempar error seperti sumber yang tidak bisa dihubungi.
+function special(query: string) {
+  if (query.startsWith("gagal")) throw new Error("sumber tiruan tidak bisa dihubungi");
+  return query.startsWith("kosong");
+}
+
 export const fakeAssets: AssetProvider = {
   name: "fake",
   async searchImages(query, { limit }) {
+    if (special(query)) return [];
     return candidates(query, limit, "IMAGE");
   },
   async searchVideos(query, { limit }) {
+    if (special(query)) return [];
     return candidates(query, limit, "VIDEO");
   },
 };

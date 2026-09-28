@@ -16,7 +16,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "check:ai": "tsx src/scripts/check-ai.ts"
+    "check:ai": "tsx src/scripts/check-ai.ts",
+    "map:data": "tsx src/scripts/build-map-data.ts"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",

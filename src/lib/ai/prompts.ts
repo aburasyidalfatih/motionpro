@@ -64,7 +64,8 @@ const GRAPHIC_TYPES_GUIDE = `- "title": kartu judul (adegan pertama atau pembuka
   lat/lng yang benar. Untuk konflik isi map.sides (nama pihak), points[].side, map.arrows (gerak pasukan/armada dari
   indeks titik ke indeks titik) dan map.zones (wilayah kekuasaan, radiusKm) bila relevan.
 - "timeline": kronologi beberapa peristiwa. Isi events (2–7 peristiwa: date singkat seperti "1825" atau "10 Nov",
-  label maksimal 5 kata). onScreenText = judul timeline.
+  label maksimal 5 kata). onScreenText = judul timeline. Hanya satu tanggal? Jangan pakai "timeline": pakai
+  "kinetic_text" dan isi timeline (penanda tanggal di pojok layar).
 - "stat": angka penting. Isi stats (1–3 angka dengan label singkat; prefix/suffix bila perlu, misalnya "%", " km",
   "US$"). onScreenText = judul singkat.
 - "comparison": perbandingan dua pihak (kekuatan militer, ekonomi, strategi). Isi comparison.left/right dan

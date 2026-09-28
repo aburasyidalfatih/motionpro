@@ -3,35 +3,44 @@ import { z } from "zod";
 // Skema output Gemini. Dipakai dua kali: dikirim sebagai JSON Schema agar
 // Gemini menjawab dalam bentuk yang tepat, lalu untuk memvalidasi jawabannya.
 
+// Daftar dengan batas jumlah. Kelebihan item dipotong, bukan ditolak, karena
+// Gemini tidak menerima batasan jumlah di skema (lihat toGeminiSchema).
+function list<T extends z.ZodType>(item: T, min: number, max: number) {
+  return z.preprocess((v) => (Array.isArray(v) ? v.slice(0, max) : v), z.array(item).min(min).max(max));
+}
+
+// Data grafis adegan yang tidak valid (misalnya timeline dengan satu peristiwa)
+// dibuang agar tidak menggagalkan seluruh naskah; normalizeScene lalu mengganti
+// adegan itu dengan teks kinetik.
+function lenient<T extends z.ZodType>(schema: T) {
+  return schema.optional().catch(undefined);
+}
+
 export const researchPlanSchema = z.object({
-  questions: z
-    .array(z.string().describe("Satu pertanyaan riset yang spesifik dan bisa dicari di web"))
-    .min(4)
-    .max(8),
+  questions: list(z.string().describe("Satu pertanyaan riset yang spesifik dan bisa dicari di web"), 4, 8),
 });
 export type ResearchPlan = z.infer<typeof researchPlanSchema>;
 
 export const briefSchema = z.object({
   summary: z.string().describe("Ringkasan topik 2–3 paragraf"),
-  facts: z
-    .array(
-      z.object({
-        text: z.string().describe("Satu fakta, angka, atau detail penting"),
-        sources: z.array(z.number().int()).describe("Nomor sumber pendukung, misalnya [1, 3]"),
-      }),
-    )
-    .min(5)
-    .max(30),
-  timeline: z
-    .array(
-      z.object({
-        date: z.string().describe("Tanggal atau tahun, misalnya 1293 atau 1 Juni 1945"),
-        event: z.string(),
-      }),
-    )
-    .max(30),
-  hooks: z.array(z.string().describe("Kalimat pembuka video yang memancing rasa penasaran")).min(3).max(5),
-  angles: z.array(z.string().describe("Sudut cerita yang menarik atau jarang diketahui")).max(6),
+  facts: list(
+    z.object({
+      text: z.string().describe("Satu fakta, angka, atau detail penting"),
+      sources: z.array(z.number().int()).describe("Nomor sumber pendukung, misalnya [1, 3]"),
+    }),
+    5,
+    30,
+  ),
+  timeline: list(
+    z.object({
+      date: z.string().describe("Tanggal atau tahun, misalnya 1293 atau 1 Juni 1945"),
+      event: z.string(),
+    }),
+    0,
+    30,
+  ),
+  hooks: list(z.string().describe("Kalimat pembuka video yang memancing rasa penasaran"), 3, 5),
+  angles: list(z.string().describe("Sudut cerita yang menarik atau jarang diketahui"), 0, 6),
 });
 export type Brief = z.infer<typeof briefSchema>;
 
@@ -50,43 +59,40 @@ export const moods = ["epic", "tense", "calm", "somber", "hopeful", "mysterious"
 
 export const mapDataSchema = z.object({
   caption: z.string().describe("Keterangan singkat peta, misalnya Pertempuran Surabaya, November 1945"),
-  points: z
-    .array(
-      z.object({
-        label: z.string(),
-        lat: z.number().min(-90).max(90),
-        lng: z.number().min(-180).max(180),
-        side: z.number().int().optional().describe("Indeks pihak di sides bila titik milik salah satu pihak"),
-      }),
-    )
-    .min(1)
-    .max(12),
+  points: list(
+    z.object({
+      label: z.string(),
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+      side: z.number().int().optional().describe("Indeks pihak di sides bila titik milik salah satu pihak"),
+    }),
+    1,
+    12,
+  ),
   route: z.boolean().describe("true bila titik-titik membentuk rute berurutan, misalnya jalur pelayaran"),
-  sides: z
-    .array(z.string())
-    .max(3)
+  sides: list(z.string(), 0, 3)
     .optional()
     .describe("Nama pihak yang bertikai atau bersaing, misalnya ['Sekutu', 'Pejuang Indonesia']"),
-  arrows: z
-    .array(
-      z.object({
-        from: z.number().int().describe("Indeks titik asal"),
-        to: z.number().int().describe("Indeks titik tujuan"),
-        side: z.number().int().describe("Indeks pihak yang bergerak"),
-      }),
-    )
-    .max(8)
+  arrows: list(
+    z.object({
+      from: z.number().int().describe("Indeks titik asal"),
+      to: z.number().int().describe("Indeks titik tujuan"),
+      side: z.number().int().describe("Indeks pihak yang bergerak"),
+    }),
+    0,
+    8,
+  )
     .optional()
     .describe("Panah gerak pasukan, armada, atau pengaruh"),
-  zones: z
-    .array(
-      z.object({
-        point: z.number().int().describe("Indeks titik pusat"),
-        radiusKm: z.number().min(5).max(3000),
-        side: z.number().int(),
-      }),
-    )
-    .max(6)
+  zones: list(
+    z.object({
+      point: z.number().int().describe("Indeks titik pusat"),
+      radiusKm: z.number().min(5).max(3000),
+      side: z.number().int(),
+    }),
+    0,
+    6,
+  )
     .optional()
     .describe("Wilayah kekuasaan atau area pengaruh berbentuk lingkaran"),
 });
@@ -98,39 +104,37 @@ export const timelineMarkSchema = z.object({
 });
 
 export const kineticSchema = z.object({
-  lines: z.array(z.string().describe("Baris pendek, maksimal 6 kata")).min(1).max(3),
-  emphasis: z.array(z.string()).max(4).describe("Kata yang ditekankan (disorot), diambil dari lines"),
+  lines: list(z.string().describe("Baris pendek, maksimal 6 kata"), 1, 3),
+  emphasis: list(z.string(), 0, 4).describe("Kata yang ditekankan (disorot), diambil dari lines"),
 });
 
-export const eventsSchema = z.array(timelineMarkSchema).min(2).max(7);
+export const eventsSchema = list(timelineMarkSchema, 2, 7);
 
-export const statsSchema = z
-  .array(
-    z.object({
-      value: z.number().describe("Angka, misalnya 40000"),
-      prefix: z.string().optional().describe("Awalan, misalnya 'US$'"),
-      suffix: z.string().optional().describe("Akhiran, misalnya '%' atau ' km'"),
-      label: z.string().describe("Arti angka, misalnya 'prajurit Mongol'"),
-    }),
-  )
-  .min(1)
-  .max(3);
+export const statsSchema = list(
+  z.object({
+    value: z.number().describe("Angka, misalnya 40000"),
+    prefix: z.string().optional().describe("Awalan, misalnya 'US$'"),
+    suffix: z.string().optional().describe("Akhiran, misalnya '%' atau ' km'"),
+    label: z.string().describe("Arti angka, misalnya 'prajurit Mongol'"),
+  }),
+  1,
+  3,
+);
 
 export const comparisonSchema = z.object({
   left: z.string().describe("Nama pihak kiri"),
   right: z.string().describe("Nama pihak kanan"),
-  rows: z
-    .array(
-      z.object({
-        label: z.string().describe("Aspek yang dibandingkan, misalnya 'Jumlah pasukan'"),
-        left: z.string(),
-        right: z.string(),
-        leftValue: z.number().optional().describe("Nilai angka pihak kiri bila bisa dibandingkan"),
-        rightValue: z.number().optional(),
-      }),
-    )
-    .min(2)
-    .max(5),
+  rows: list(
+    z.object({
+      label: z.string().describe("Aspek yang dibandingkan, misalnya 'Jumlah pasukan'"),
+      left: z.string(),
+      right: z.string(),
+      leftValue: z.number().optional().describe("Nilai angka pihak kiri bila bisa dibandingkan"),
+      rightValue: z.number().optional(),
+    }),
+    2,
+    5,
+  ),
 });
 
 export const quoteSchema = z.object({
@@ -153,25 +157,24 @@ export type GraphicData = z.infer<typeof graphicDataSchema>;
 export const sceneSchema = z.object({
   narration: z.string().describe("Teks yang dibacakan narator"),
   onScreenText: z.string().describe("Teks singkat di layar, boleh kosong"),
-  keywords: z
-    .array(z.string().describe("Kata kunci pencarian aset dalam bahasa Inggris"))
-    .max(8)
-    .describe("Wajib untuk painting, archival_photo, footage; boleh kosong untuk tipe grafis"),
-  visualType: z.enum(visualTypes),
-  mood: z.enum(moods),
-  map: mapDataSchema.optional().describe("Wajib bila visualType = map"),
-  timeline: timelineMarkSchema.optional().describe("Penanda tanggal penting di pojok layar, untuk tipe apa pun"),
-  kinetic: kineticSchema.optional().describe("Wajib bila visualType = kinetic_text"),
-  events: eventsSchema.optional().describe("Wajib bila visualType = timeline"),
-  stats: statsSchema.optional().describe("Wajib bila visualType = stat"),
-  comparison: comparisonSchema.optional().describe("Wajib bila visualType = comparison"),
-  quote: quoteSchema.optional().describe("Wajib bila visualType = quote"),
+  keywords: list(z.string().describe("Kata kunci pencarian aset dalam bahasa Inggris"), 0, 8).describe(
+    "Wajib untuk painting, archival_photo, footage; boleh kosong untuk tipe grafis",
+  ),
+  visualType: z.enum(visualTypes).catch("kinetic_text"),
+  mood: z.enum(moods).catch("calm"),
+  map: lenient(mapDataSchema).describe("Wajib bila visualType = map"),
+  timeline: lenient(timelineMarkSchema).describe("Penanda tanggal penting di pojok layar, untuk tipe apa pun"),
+  kinetic: lenient(kineticSchema).describe("Wajib bila visualType = kinetic_text"),
+  events: lenient(eventsSchema).describe("Wajib bila visualType = timeline (minimal 2 peristiwa)"),
+  stats: lenient(statsSchema).describe("Wajib bila visualType = stat"),
+  comparison: lenient(comparisonSchema).describe("Wajib bila visualType = comparison (minimal 2 baris)"),
+  quote: lenient(quoteSchema).describe("Wajib bila visualType = quote"),
 });
 export type SceneDraft = z.infer<typeof sceneSchema>;
 
 export const scriptSchema = z.object({
   title: z.string().describe("Judul kerja video"),
-  scenes: z.array(sceneSchema).min(3).max(120),
+  scenes: list(sceneSchema, 3, 120),
 });
 export type Script = z.infer<typeof scriptSchema>;
 
@@ -189,7 +192,7 @@ export type AssetRanking = z.infer<typeof assetRankingSchema>;
 // Batasan jumlah dan rentang membuat skema terlalu kompleks bagi Gemini
 // (error 400 INVALID_ARGUMENT), jadi tidak dikirim. Batasan itu tetap
 // diperiksa oleh zod saat jawaban divalidasi.
-const CONSTRAINT_KEYS = new Set(["minItems", "maxItems", "minimum", "maximum", "minLength", "maxLength"]);
+const CONSTRAINT_KEYS = new Set(["minItems", "maxItems", "minimum", "maximum", "minLength", "maxLength", "default"]);
 
 function stripConstraints(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripConstraints);

@@ -210,6 +210,8 @@ model Voiceover {
   audioPath      String
   durationMs     Int
   voiceId        String
+  // Gaya bicara saat suara dibuat ("" = tanpa gaya); null untuk voice over lama.
+  voiceStyle     String?
   // Timestamp per kata untuk subtitle karaoke: [{ word, startMs, endMs }].
   wordTimestamps Json     @default("[]")
   createdAt      DateTime @default(now())

@@ -11,7 +11,9 @@ import { fileUrl } from "@/lib/storage";
 import {
   DEFAULT_VOICE,
   DEFAULT_VOICE_STYLE,
+  isOutdatedVoiceover,
   listVoiceSamples,
+  projectVoice,
   VOICE_STYLE_EXAMPLE,
   VOICE_STYLE_PRESETS,
   VOICES,
@@ -91,6 +93,11 @@ function AudioBody({
   }
 
   const voiced = scenes.filter((s) => s.voiceover).length;
+  // Adegan yang suaranya dibuat dengan suara atau gaya bicara lain dari pengaturan sekarang.
+  const narrator = projectVoice(project);
+  const outdated = new Set(
+    scenes.filter((s) => s.voiceover && isOutdatedVoiceover(s.voiceover, narrator)).map((s) => s.id),
+  );
   const totalMs = scenes.reduce((sum, s) => sum + (s.durationMs ?? 0), 0);
   const currentTrack = music.find((t) => t.path === project.musicTrack);
   const currentVoice = project.voiceId ?? DEFAULT_VOICE;
@@ -123,7 +130,7 @@ function AudioBody({
             />
             <span className="mt-1 block text-xs font-normal text-zinc-500">
               Pilih preset atau tulis sendiri; kosongkan agar narasi dibacakan apa adanya. Instruksi gaya kadang ikut
-              terbaca; bila terdeteksi, adegan itu diulang tanpa instruksi.
+              terbaca; bila terdeteksi, adegan itu dicoba ulang, dan baru dibacakan tanpa instruksi bila masih terbaca.
             </span>
           </div>
           <div>
@@ -133,8 +140,8 @@ function AudioBody({
           </div>
         </form>
         <p className="text-xs text-zinc-500">
-          Setelah mengganti suara atau gaya, klik <span className="font-medium">Buat ulang semua</span> agar semua
-          adegan memakai suara baru.
+          Setelah mengganti suara atau gaya, klik <span className="font-medium">Samakan</span> di bawah agar semua
+          adegan memakai suara yang sama. Volume tiap adegan disamakan otomatis.
         </p>
       </section>
 
@@ -147,15 +154,22 @@ function AudioBody({
             </p>
           </div>
           <div className="flex gap-2">
+            {outdated.size > 0 && (
+              <form action={startAudio.bind(null, project.id, "outdated")}>
+                <SubmitButton disabled={busy} pendingText="Memulai...">
+                  Samakan {outdated.size} adegan
+                </SubmitButton>
+              </form>
+            )}
             {voiced > 0 && (
-              <form action={startAudio.bind(null, project.id, true)}>
+              <form action={startAudio.bind(null, project.id, "all")}>
                 <SubmitButton variant="secondary" disabled={busy} pendingText="Memulai...">
                   Buat ulang semua
                 </SubmitButton>
               </form>
             )}
             {voiced < scenes.length && (
-              <form action={startAudio.bind(null, project.id, false)}>
+              <form action={startAudio.bind(null, project.id, "missing")}>
                 <SubmitButton disabled={busy} pendingText="Memulai...">
                   Buat voice over ({scenes.length - voiced} adegan)
                 </SubmitButton>
@@ -163,6 +177,14 @@ function AudioBody({
             )}
           </div>
         </div>
+
+        {outdated.size > 0 && (
+          <p className="rounded-md border border-amber-300 p-3 text-sm text-amber-700 dark:border-amber-800 dark:text-amber-400">
+            {outdated.size} adegan dibuat dengan suara atau gaya bicara yang berbeda dari pengaturan sekarang, jadi
+            narasinya terdengar tidak konsisten. Klik <span className="font-medium">Samakan</span> untuk membuat ulang
+            adegan itu saja.
+          </p>
+        )}
 
         <ol className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
           {scenes.map((scene, index) => (
@@ -172,6 +194,12 @@ function AudioBody({
                   Adegan {index + 1} · {formatDuration(scene.durationMs ?? 0)}
                   {!scene.voiceover && " (perkiraan)"}
                 </span>
+                {scene.voiceover && outdated.has(scene.id) && (
+                  <span className="ml-2 text-xs text-amber-600">
+                    suara lain: {scene.voiceover.voiceId}
+                    {scene.voiceover.voiceStyle ? ` · ${scene.voiceover.voiceStyle}` : ""}
+                  </span>
+                )}
                 <p className="line-clamp-2">{scene.narration}</p>
               </div>
               <div className="flex items-center gap-2">

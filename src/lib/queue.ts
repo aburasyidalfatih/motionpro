@@ -36,10 +36,12 @@ export type AssetJobInput = {
 };
 
 // Input job AUDIO: tanpa sceneId, buat voice over untuk adegan yang belum
-// punya (atau semua bila regenerate); dengan sceneId, satu adegan saja.
+// punya (atau semua bila regenerate, atau yang suara/gayanya berbeda dari
+// pengaturan proyek bila outdated); dengan sceneId, satu adegan saja.
 export type AudioJobInput = {
   sceneId?: string;
   regenerate?: boolean;
+  outdated?: boolean;
 };
 
 // Input job VOICE_SAMPLES (tanpa proyek): contoh suara narator untuk halaman

@@ -87,6 +87,47 @@ export function trimEdgeNoise(pcm: Buffer, sampleRate: number, threshold = 600) 
   return out;
 }
 
+// Target kekerasan bagian bersuara (RMS ±-20 dBFS) dan batas puncak (±-1 dBFS).
+const TARGET_RMS = 3300;
+const PEAK_LIMIT = 29_000;
+
+// Gemini TTS menghasilkan tiap adegan dengan volume yang berbeda-beda; tanpa
+// penyamaan, narasi terdengar naik-turun antaradegan. RMS dihitung hanya dari
+// bagian bersuara (jendela 10 ms di atas ambang) agar jeda tidak ikut dihitung.
+export function normalizeLoudness(pcm: Buffer, sampleRate: number, threshold = 600) {
+  const samples = pcm.length / 2;
+  const window = Math.max(1, Math.round(sampleRate / 100));
+  let sumSquares = 0;
+  let voiced = 0;
+  let peak = 0;
+  for (let w = 0; w * window < samples; w++) {
+    let windowPeak = 0;
+    let windowSquares = 0;
+    const end = Math.min((w + 1) * window, samples);
+    for (let j = w * window; j < end; j++) {
+      const value = pcm.readInt16LE(j * 2);
+      windowPeak = Math.max(windowPeak, Math.abs(value));
+      windowSquares += value * value;
+    }
+    peak = Math.max(peak, windowPeak);
+    if (windowPeak < threshold) continue;
+    sumSquares += windowSquares;
+    voiced += end - w * window;
+  }
+  if (voiced === 0 || peak === 0) return pcm;
+
+  const rms = Math.sqrt(sumSquares / voiced);
+  // Dibatasi agar audio yang nyaris hening atau rusak tidak diperkeras berlebihan.
+  const gain = Math.max(0.25, Math.min(4, TARGET_RMS / rms, PEAK_LIMIT / peak));
+  if (Math.abs(gain - 1) < 0.02) return pcm;
+  const out = Buffer.alloc(pcm.length);
+  for (let i = 0; i < samples; i++) {
+    const value = Math.round(pcm.readInt16LE(i * 2) * gain);
+    out.writeInt16LE(Math.max(-32768, Math.min(32767, value)), i * 2);
+  }
+  return out;
+}
+
 // F-20: Gemini TTS tidak memberi waktu per kata, jadi waktunya diperkirakan:
 // rentang bersuara dibagi ke tiap kata menurut panjangnya, dengan jeda
 // tambahan setelah tanda baca. Cukup untuk subtitle per kata.

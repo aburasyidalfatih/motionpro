@@ -16,6 +16,7 @@ import { ping } from "./handlers/ping";
 import { render } from "./handlers/render";
 import { research } from "./handlers/research";
 import { script } from "./handlers/script";
+import { voiceSamples } from "./handlers/voice-samples";
 import type { JobHandler } from "./types";
 
 // Handler per jenis job. Tahap publish ditambahkan di fase 4.
@@ -26,6 +27,7 @@ const handlers: Partial<Record<JobKind, JobHandler>> = {
   ASSETS: assets,
   AUDIO: audio,
   RENDER: render,
+  VOICE_SAMPLES: voiceSamples,
 };
 
 // Render memakan hampir seluruh CPU, jadi default-nya satu job sekaligus.

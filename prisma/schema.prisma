@@ -48,6 +48,7 @@ enum JobKind {
   AUDIO
   RENDER
   PUBLISH
+  VOICE_SAMPLES
 }
 
 enum JobStatus {

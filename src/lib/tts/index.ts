@@ -1,33 +1,37 @@
+import { readdir } from "node:fs/promises";
 import { fatalError, geminiClient } from "@/lib/ai/client";
 import { estimateDurationMs } from "@/lib/projects";
+import { storagePath } from "@/lib/storage";
 import { speechBounds, tonePcm, trimEdgeNoise } from "./audio";
+
+export { DEFAULT_VOICE, VOICE_SAMPLE_TEXT, VOICE_STYLE_PRESETS, VOICES } from "./voices";
 
 // Voice over dengan Gemini TTS. Model dan suara bisa diganti lewat .env dan
 // halaman Audio; mode tiruan (AI_PROVIDER=fake) menghasilkan nada pengganti.
 
 const DEFAULT_MODEL = "gemini-3.8-flash-tts";
 
-export const DEFAULT_VOICE = "Charon";
 // Tanpa instruksi gaya secara bawaan: model TTS kadang tetap membacakan
 // instruksinya, dan suara seperti Charon sudah cocok untuk narasi dokumenter.
 export const DEFAULT_VOICE_STYLE = "";
 export const VOICE_STYLE_EXAMPLE = "Tenang dan berwibawa, tempo sedang";
 
-// Beberapa suara bawaan Gemini yang cocok untuk narasi dokumenter.
-export const VOICE_SUGGESTIONS = [
-  { name: "Charon", note: "informatif" },
-  { name: "Orus", note: "tegas" },
-  { name: "Alnilam", note: "tegas" },
-  { name: "Gacrux", note: "matang" },
-  { name: "Sadaltager", note: "berpengetahuan" },
-  { name: "Rasalgethi", note: "informatif" },
-  { name: "Iapetus", note: "jernih" },
-  { name: "Schedar", note: "stabil" },
-  { name: "Algenib", note: "serak" },
-  { name: "Kore", note: "tegas, perempuan" },
-  { name: "Aoede", note: "ringan, perempuan" },
-  { name: "Fenrir", note: "bersemangat" },
-];
+export function ttsModel() {
+  return process.env.AI_PROVIDER === "fake" ? "fake" : process.env.GEMINI_TTS_MODEL || DEFAULT_MODEL;
+}
+
+// Contoh suara disimpan per model, karena suara yang sama bisa berbeda antarmodel.
+const samplesDir = () => `voice-samples/${ttsModel()}`;
+
+export function voiceSamplePath(voice: string) {
+  return `${samplesDir()}/${voice}.wav`;
+}
+
+// Nama suara yang contohnya sudah dibuat untuk model sekarang.
+export async function listVoiceSamples() {
+  const files = await readdir(storagePath(samplesDir())).catch(() => [] as string[]);
+  return new Set(files.filter((f) => f.endsWith(".wav")).map((f) => f.slice(0, -4)));
+}
 
 export type Speech = { pcm: Buffer; sampleRate: number };
 
@@ -75,7 +79,7 @@ export async function synthesize(text: string, options: { voice: string; style: 
     return { pcm: tonePcm(estimateDurationMs(text)), sampleRate: 24_000 };
   }
 
-  const model = process.env.GEMINI_TTS_MODEL || DEFAULT_MODEL;
+  const model = ttsModel();
   const clean = (speech: Speech) => ({ ...speech, pcm: trimEdgeNoise(speech.pcm, speech.sampleRate) });
   const speech = clean(await generateSpeech(model, ttsPrompt(text, options.style), options.voice));
   if (!options.style.trim() || !readsStyle(speech, text, options.style)) return speech;

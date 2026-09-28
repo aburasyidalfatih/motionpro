@@ -26,6 +26,15 @@ export async function saveVoiceSettings(projectId: string, formData: FormData) {
   refresh();
 }
 
+// Contoh suara narator untuk semua suara yang belum punya (tidak terikat proyek).
+export async function startVoiceSamples() {
+  const active = await db.jobRun.findFirst({
+    where: { kind: "VOICE_SAMPLES", status: { in: ["QUEUED", "RUNNING"] } },
+  });
+  if (!active) await enqueueJob("VOICE_SAMPLES");
+  refresh();
+}
+
 // F-21: membuat ulang suara satu adegan.
 export async function revoiceScene(sceneId: string) {
   const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });

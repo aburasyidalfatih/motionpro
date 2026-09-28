@@ -8,8 +8,19 @@ import { libraryUrl, listMusic, listSfx, type LibraryTrack } from "@/lib/library
 import { formatDuration } from "@/lib/projects";
 import { isSceneJob, type AudioJobInput } from "@/lib/queue";
 import { fileUrl } from "@/lib/storage";
-import { DEFAULT_VOICE, DEFAULT_VOICE_STYLE, VOICE_STYLE_EXAMPLE, VOICE_SUGGESTIONS } from "@/lib/tts";
-import { revoiceScene, saveMusic, saveVoiceSettings, startAudio } from "./actions";
+import {
+  DEFAULT_VOICE,
+  DEFAULT_VOICE_STYLE,
+  listVoiceSamples,
+  VOICE_STYLE_EXAMPLE,
+  VOICE_STYLE_PRESETS,
+  VOICES,
+  voiceSamplePath,
+} from "@/lib/tts";
+import type { Voice } from "@/lib/tts/voices";
+import { revoiceScene, saveMusic, saveVoiceSettings, startAudio, startVoiceSamples } from "./actions";
+import { VoicePicker } from "./VoicePicker";
+import { VoiceStyleField } from "./VoiceStyleField";
 
 const field = "mt-1 w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700";
 
@@ -25,20 +36,44 @@ async function loadProject(id: string) {
 
 type ProjectData = NonNullable<Awaited<ReturnType<typeof loadProject>>>;
 
+// Contoh suara yang sudah ada dan job pembuatannya yang terakhir.
+async function loadVoiceSamples() {
+  const [existing, job] = await Promise.all([
+    listVoiceSamples(),
+    db.jobRun.findFirst({ where: { kind: "VOICE_SAMPLES" }, orderBy: { createdAt: "desc" } }),
+  ]);
+  const urls = Object.fromEntries([...existing].map((name) => [name, fileUrl(voiceSamplePath(name))]));
+  const missing = VOICES.filter((v) => !existing.has(v.name)).length;
+  return { urls, missing, job };
+}
+
+type VoiceSamples = Awaited<ReturnType<typeof loadVoiceSamples>>;
+
 export default async function AudioPage({ params }: PageProps<"/projects/[id]/audio">) {
   const { id } = await params;
   const project = await loadProject(id);
   if (!project) notFound();
-  const [music, sfx] = await Promise.all([listMusic(), listSfx()]);
+  const [music, sfx, samples] = await Promise.all([listMusic(), listSfx(), loadVoiceSamples()]);
+  const samplesRunning = samples.job?.status === "QUEUED" || samples.job?.status === "RUNNING";
   return (
     <>
-      <AutoRefresh active={project.jobs.length > 0} />
-      <AudioBody project={project} music={music} sfxCount={sfx.length} />
+      <AutoRefresh active={project.jobs.length > 0 || samplesRunning} />
+      <AudioBody project={project} music={music} sfxCount={sfx.length} samples={samples} />
     </>
   );
 }
 
-function AudioBody({ project, music, sfxCount }: { project: ProjectData; music: LibraryTrack[]; sfxCount: number }) {
+function AudioBody({
+  project,
+  music,
+  sfxCount,
+  samples,
+}: {
+  project: ProjectData;
+  music: LibraryTrack[];
+  sfxCount: number;
+  samples: VoiceSamples;
+}) {
   const busy = project.jobs.some((j) => !isSceneJob(j.input));
   const revoicing = new Set(project.jobs.map((j) => (j.input as AudioJobInput | null)?.sceneId).filter(Boolean));
   const scenes = project.scenes;
@@ -58,37 +93,39 @@ function AudioBody({ project, music, sfxCount }: { project: ProjectData; music: 
   const voiced = scenes.filter((s) => s.voiceover).length;
   const totalMs = scenes.reduce((sum, s) => sum + (s.durationMs ?? 0), 0);
   const currentTrack = music.find((t) => t.path === project.musicTrack);
+  const currentVoice = project.voiceId ?? DEFAULT_VOICE;
+  // Suara lama yang diketik manual dan tidak ada di daftar tetap bisa dipilih.
+  const voiceOptions: Voice[] = VOICES.some((v) => v.name === currentVoice)
+    ? VOICES
+    : [...VOICES, { name: currentVoice, gender: "pria", note: "diisi manual" }];
 
   return (
     <div className="space-y-10">
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Suara narator</h2>
-        <form action={saveVoiceSettings.bind(null, project.id)} className="grid max-w-2xl gap-4">
-          <label className="block text-sm font-medium">
+        <VoiceSampleStatus samples={samples} />
+        <form action={saveVoiceSettings.bind(null, project.id)} className="grid max-w-4xl gap-5">
+          <div className="text-sm font-medium">
             Suara Gemini TTS
-            <input name="voiceId" list="voices" defaultValue={project.voiceId ?? DEFAULT_VOICE} className={field} />
-            <datalist id="voices">
-              {VOICE_SUGGESTIONS.map((v) => (
-                <option key={v.name} value={v.name}>
-                  {v.note}
-                </option>
-              ))}
-            </datalist>
-          </label>
-          <label className="block text-sm font-medium">
-            Gaya bicara (opsional)
-            <textarea
-              name="voiceStyle"
-              rows={2}
+            <div className="mt-2 font-normal">
+              <VoicePicker voices={voiceOptions} defaultValue={currentVoice} samples={samples.urls} />
+            </div>
+          </div>
+          {/* Bukan <label> pembungkus: klik pada label akan menekan tombol preset pertama. */}
+          <div className="max-w-2xl text-sm font-medium">
+            <label htmlFor="voiceStyle">Gaya bicara (opsional)</label>
+            <VoiceStyleField
+              id="voiceStyle"
               defaultValue={project.voiceStyle ?? DEFAULT_VOICE_STYLE}
+              presets={VOICE_STYLE_PRESETS}
               placeholder={`Misalnya: ${VOICE_STYLE_EXAMPLE}`}
               className={field}
             />
             <span className="mt-1 block text-xs font-normal text-zinc-500">
-              Kosongkan agar narasi dibacakan apa adanya. Instruksi gaya kadang ikut terbaca; bila terdeteksi, adegan
-              itu diulang tanpa instruksi.
+              Pilih preset atau tulis sendiri; kosongkan agar narasi dibacakan apa adanya. Instruksi gaya kadang ikut
+              terbaca; bila terdeteksi, adegan itu diulang tanpa instruksi.
             </span>
-          </label>
+          </div>
           <div>
             <SubmitButton variant="secondary" pendingText="Menyimpan...">
               Simpan pengaturan suara
@@ -201,6 +238,33 @@ function AudioBody({ project, music, sfxCount }: { project: ProjectData; music: 
           dipasang di transisi. Keduanya diterapkan saat render.
         </p>
       </section>
+    </div>
+  );
+}
+
+function VoiceSampleStatus({ samples }: { samples: VoiceSamples }) {
+  const { job, missing } = samples;
+  if (job?.status === "QUEUED" || job?.status === "RUNNING") {
+    return <p className="text-sm text-amber-600">Membuat contoh suara... {job.progress}%</p>;
+  }
+  if (missing === 0) {
+    return (
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        Klik ▶ untuk mendengar contoh suara (dibacakan tanpa gaya bicara).
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
+      <span>
+        {missing} dari {VOICES.length} suara belum punya contoh. Contoh dibuat sekali lalu dipakai semua proyek.
+      </span>
+      <form action={startVoiceSamples}>
+        <SubmitButton variant="secondary" size="sm" pendingText="Memulai...">
+          Buat contoh suara
+        </SubmitButton>
+      </form>
+      {job?.status === "FAILED" && <span className="w-full text-xs text-red-600">Gagal: {job.error}</span>}
     </div>
   );
 }

@@ -40,6 +40,12 @@ export type AudioJobInput = {
   regenerate?: boolean;
 };
 
+// Input job VOICE_SAMPLES (tanpa proyek): contoh suara narator untuk halaman
+// Audio. Tanpa voices, dibuat untuk semua suara yang belum punya contoh.
+export type VoiceSamplesJobInput = {
+  voices?: string[];
+};
+
 // Input job RENDER.
 export type RenderJobInput = {
   subtitles?: boolean;

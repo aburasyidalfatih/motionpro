@@ -20,6 +20,7 @@ export const jobKindLabel: Record<JobKind, string> = {
   AUDIO: "Audio",
   RENDER: "Render",
   PUBLISH: "Publish",
+  VOICE_SAMPLES: "Contoh suara",
 };
 
 export const visualTypeLabel: Record<string, string> = {

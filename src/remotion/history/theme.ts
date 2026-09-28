@@ -1,8 +1,11 @@
+import { displayFamily, serifFamily, textFamily } from "./fonts";
+
 // Palet dan tipografi template: nuansa ruang komando (navy, grid, emas) untuk
 // adegan grafis, dan nuansa perkamen untuk adegan lukisan dan arsip.
 export const theme = {
-  serif: "Georgia, 'Times New Roman', 'Liberation Serif', serif",
-  sans: "'Helvetica Neue', Arial, 'Liberation Sans', sans-serif",
+  serif: `'${serifFamily}', Georgia, serif`,
+  sans: `'${displayFamily}', 'Arial Narrow', sans-serif`,
+  text: `'${textFamily}', Arial, sans-serif`,
   ink: "#f3e6cf",
   inkSoft: "#e2d3b8",
   muted: "#9fb0bf",

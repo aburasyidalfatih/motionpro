@@ -6,15 +6,25 @@ import { USER_AGENT } from "./types";
 
 const MAX_BYTES = 300 * 1024 * 1024;
 
-// Gambar disimpan sebagai JPEG maksimal 2560×1440: cukup tajam untuk efek
-// ken-burns di video 1080p, tapi jauh lebih ringan daripada file asli arsip.
+const MAX_WIDTH = 2560;
+const MAX_HEIGHT = 1440;
+
+// Gambar disimpan sebagai JPEG seukuran 2560×1440 (muat di dalamnya): cukup
+// tajam untuk efek ken-burns di video 1080p, tapi jauh lebih ringan daripada
+// file asli arsip. Gambar yang lebih kecil diperbesar di sini dengan lanczos3
+// dan sedikit dipertajam, hasilnya lebih halus daripada diperbesar Chrome saat render.
 export async function processImage(input: Buffer) {
-  const output = await sharp(input)
-    .rotate()
-    .resize({ width: 2560, height: 1440, fit: "inside", withoutEnlargement: true })
-    .flatten({ background: "#ffffff" })
-    .jpeg({ quality: 90, mozjpeg: true })
-    .toBuffer({ resolveWithObject: true });
+  const image = sharp(input).rotate();
+  const { width = 0, height = 0, orientation = 1 } = await image.metadata();
+  // Orientasi EXIF 5–8 memutar gambar 90°, jadi lebar dan tinggi bertukar.
+  const [w, h] = orientation >= 5 ? [height, width] : [width, height];
+  const enlarged = w > 0 && h > 0 && w < MAX_WIDTH && h < MAX_HEIGHT;
+
+  let pipeline = image
+    .resize({ width: MAX_WIDTH, height: MAX_HEIGHT, fit: "inside", kernel: "lanczos3" })
+    .flatten({ background: "#ffffff" });
+  if (enlarged) pipeline = pipeline.sharpen({ sigma: 0.7 });
+  const output = await pipeline.jpeg({ quality: 90, mozjpeg: true }).toBuffer({ resolveWithObject: true });
   return { data: output.data, width: output.info.width, height: output.info.height };
 }
 

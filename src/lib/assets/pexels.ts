@@ -73,7 +73,8 @@ export const pexels: AssetProvider = {
         provider: "pexels",
         providerId: `photo-${p.id}`,
         title: p.alt || query,
-        originalUrl: p.src.large2x,
+        // Ukuran asli diperkecil oleh CDN Pexels ke lebar 2560 (large2x hanya ±1880).
+        originalUrl: `${p.src.original}?auto=compress&cs=tinysrgb&w=2560`,
         previewUrl: p.src.medium,
         pageUrl: p.url,
         author: p.photographer,

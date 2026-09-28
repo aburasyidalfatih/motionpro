@@ -5,7 +5,15 @@ import { USER_AGENT, type AssetCandidate, type AssetProvider } from "./types";
 // API: https://commons.wikimedia.org/wiki/Commons:API/MediaWiki
 
 const API = "https://commons.wikimedia.org/w/api.php";
-const MIN_WIDTH = 800;
+// Batas ketajaman di video 1080p. Gambar lanskap mengisi lebar layar, gambar
+// potret atau persegi tampil utuh setinggi layar (lihat ImageLayer), jadi yang
+// diukur berbeda. Gambar di bawah batas ini tampak buram meski diperbesar.
+const MIN_LANDSCAPE_WIDTH = 1280;
+const MIN_PORTRAIT_HEIGHT = 960;
+
+export function isSharpEnough(width: number, height: number) {
+  return width / height >= 1.3 ? width >= MIN_LANDSCAPE_WIDTH : height >= MIN_PORTRAIT_HEIGHT;
+}
 const IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 type ImageInfo = {
@@ -86,7 +94,7 @@ async function searchOnce(query: string, limit: number) {
   const results: AssetCandidate[] = [];
   for (const page of pages) {
     const info = page.imageinfo?.[0];
-    if (!info || !IMAGE_MIMES.has(info.mime) || info.width < MIN_WIDTH) continue;
+    if (!info || !IMAGE_MIMES.has(info.mime) || !isSharpEnough(info.width, info.height)) continue;
     const license = stripHtml(info.extmetadata?.LicenseShortName?.value ?? "");
     if (!isAllowedLicense(license)) continue;
     const name = info.extmetadata?.ObjectName?.value;

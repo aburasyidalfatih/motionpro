@@ -5,6 +5,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import { theme } from "../history/theme";
 
 export type TitleCardProps = {
   title: string;
@@ -51,7 +52,7 @@ export function TitleCard({ title, subtitle, era }: TitleCardProps) {
         style={{
           justifyContent: "center",
           alignItems: "center",
-          fontFamily: "Georgia, 'Times New Roman', serif",
+          fontFamily: theme.serif,
           color: "#f3e6cf",
           textAlign: "center",
           padding: 120,

@@ -23,6 +23,7 @@
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@remotion/bundler": "4.0.529",
+    "@remotion/fonts": "4.0.529",
     "@remotion/player": "4.0.529",
     "@remotion/renderer": "4.0.529",
     "bullmq": "^6.3.9",

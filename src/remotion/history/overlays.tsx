@@ -110,7 +110,7 @@ export function Subtitles({ words }: { words: WordTiming[] }) {
           padding: "12px 28px",
           borderRadius: 10,
           background: "rgba(0,0,0,0.55)",
-          fontFamily: "'Helvetica Neue', Arial, 'Liberation Sans', sans-serif",
+          fontFamily: theme.text,
           fontSize: 48,
           fontWeight: 700,
           lineHeight: 1.25,

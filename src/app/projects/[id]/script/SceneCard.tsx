@@ -1,14 +1,31 @@
 import type { Scene } from "@/generated/prisma/client";
 import { SubmitButton } from "@/components/SubmitButton";
-import { moods, visualTypes, type MapData } from "@/lib/ai/schemas";
+import { moods, needsAsset, visualTypes, type GraphicData } from "@/lib/ai/schemas";
 import { moodLabel, visualTypeLabel } from "@/lib/labels";
 import { formatDuration } from "@/lib/projects";
 import { addSceneAfter, deleteScene, moveScene, rewriteScene, saveScene } from "../actions";
+import { GraphicDataField } from "./GraphicDataField";
 
-const field =
-  "mt-1 w-full rounded-md border border-zinc-300 bg-transparent px-2.5 py-1.5 text-sm dark:border-zinc-700";
+const field = "mt-1 w-full rounded-md border border-zinc-300 bg-transparent px-2.5 py-1.5 text-sm dark:border-zinc-700";
 
-type SceneExtras = { map?: MapData; timeline?: { date: string; label: string } };
+// Ringkasan satu baris data grafis adegan.
+function describeGraphic(g: GraphicData) {
+  const parts: string[] = [];
+  if (g.kinetic) parts.push(`Teks: ${g.kinetic.lines.join(" / ")}`);
+  if (g.map) {
+    const arrows = g.map.arrows?.length ? ` · ${g.map.arrows.length} panah` : "";
+    const sides = g.map.sides?.length ? ` · ${g.map.sides.join(" vs ")}` : "";
+    parts.push(`Peta: ${g.map.caption} · ${g.map.points.map((p) => p.label).join(", ")}${arrows}${sides}`);
+  }
+  if (g.events) parts.push(`Timeline: ${g.events.map((e) => e.date).join(" → ")}`);
+  if (g.stats)
+    parts.push(`Angka: ${g.stats.map((s) => `${s.prefix ?? ""}${s.value}${s.suffix ?? ""} ${s.label}`).join("; ")}`);
+  if (g.comparison)
+    parts.push(`Perbandingan: ${g.comparison.left} vs ${g.comparison.right} (${g.comparison.rows.length} aspek)`);
+  if (g.quote) parts.push(`Kutipan: “${g.quote.text}” (${g.quote.source})`);
+  if (g.timeline) parts.push(`Penanda tahun: ${g.timeline.date} · ${g.timeline.label}`);
+  return parts;
+}
 
 export function SceneCard({
   scene,
@@ -23,7 +40,8 @@ export function SceneCard({
   rewriting: boolean;
   locked: boolean;
 }) {
-  const extras = (scene.mapData ?? {}) as SceneExtras;
+  const graphic = (scene.graphicData ?? {}) as GraphicData;
+  const summary = describeGraphic(graphic);
   const disabled = rewriting || locked;
 
   return (
@@ -76,6 +94,7 @@ export function SceneCard({
           </label>
           <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Kata kunci aset (bahasa Inggris, pisahkan dengan koma)
+            {needsAsset(scene.visualType) ? "" : " · tidak dipakai adegan grafis"}
             <input name="keywords" defaultValue={scene.keywords.join(", ")} className={field} disabled={disabled} />
           </label>
           <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
@@ -100,21 +119,17 @@ export function SceneCard({
           </label>
         </div>
 
-        {(extras.map || extras.timeline) && (
-          <div className="rounded-md bg-zinc-50 p-3 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-            {extras.map && (
-              <div>
-                <span className="font-medium">Peta:</span> {extras.map.caption} ·{" "}
-                {extras.map.points.map((p) => p.label).join(extras.map.route ? " → " : ", ")}
-              </div>
-            )}
-            {extras.timeline && (
-              <div>
-                <span className="font-medium">Timeline:</span> {extras.timeline.date} · {extras.timeline.label}
-              </div>
-            )}
+        {summary.length > 0 && (
+          <div className="space-y-1 rounded-md bg-zinc-50 p-3 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+            {summary.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
           </div>
         )}
+        <GraphicDataField
+          defaultValue={Object.keys(graphic).length ? JSON.stringify(graphic, null, 2) : ""}
+          disabled={disabled}
+        />
 
         <SubmitButton size="sm" disabled={disabled} pendingText="Menyimpan...">
           Simpan adegan

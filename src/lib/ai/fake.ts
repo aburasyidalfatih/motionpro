@@ -64,41 +64,91 @@ export function createFakeAI(): ScriptAI {
       const count = Math.max(3, Math.round(project.targetMinutes * 6));
       const perScene = Math.round((project.targetMinutes * WORDS_PER_MINUTE) / count);
       const filler = Array.from({ length: perScene }, () => "narasi").join(" ");
-      const scenes: SceneDraft[] = Array.from({ length: count }, (_, i) => {
-        if (i === 0) {
-          return {
-            narration: `Contoh hook tentang ${project.topic}. ${filler}`,
-            onScreenText: project.topic,
-            keywords: ["ancient java temple"],
-            visualType: "title",
-            mood: "epic",
-          };
-        }
-        if (i % 4 === 1) {
-          return {
-            narration: `Adegan peta contoh ${i + 1}. ${filler}`,
-            onScreenText: "",
-            keywords: ["java island old map"],
-            visualType: "map",
-            mood: "calm",
-            map: {
-              caption: "Contoh peta Jawa Timur",
-              points: [
-                { label: "Trowulan", lat: -7.56, lng: 112.38 },
-                { label: "Tuban", lat: -6.9, lng: 112.05 },
+      const base = (i: number) => ({ narration: `Adegan contoh ${i + 1}. ${filler}`, onScreenText: "", keywords: [] });
+      // Berputar melalui semua tipe grafis; gaya arsip menyisipkan lukisan.
+      const cycle =
+        project.style === "ARCHIVAL"
+          ? ["map", "painting", "stat", "footage", "comparison"]
+          : ["kinetic_text", "map", "timeline", "stat", "comparison", "quote"];
+      const scenes: SceneDraft[] = Array.from({ length: count }, (_, i): SceneDraft => {
+        if (i === 0) return { ...base(i), onScreenText: project.topic, visualType: "title", mood: "epic" };
+        const type = cycle[(i - 1) % cycle.length];
+        switch (type) {
+          case "kinetic_text":
+            return {
+              ...base(i),
+              visualType: "kinetic_text",
+              mood: "tense",
+              kinetic: { lines: ["Contoh teks kinetik", `adegan ${i + 1}`], emphasis: ["kinetik"] },
+            };
+          case "map":
+            return {
+              ...base(i),
+              visualType: "map",
+              mood: "tense",
+              map: {
+                caption: "Contoh peta pertempuran",
+                route: false,
+                sides: ["Pihak A", "Pihak B"],
+                points: [
+                  { label: "Surabaya", lat: -7.26, lng: 112.75, side: 1 },
+                  { label: "Tanjung Perak", lat: -7.2, lng: 112.73, side: 0 },
+                ],
+                arrows: [{ from: 1, to: 0, side: 0 }],
+              },
+            };
+          case "timeline":
+            return {
+              ...base(i),
+              visualType: "timeline",
+              mood: "calm",
+              onScreenText: "Contoh kronologi",
+              events: [
+                { date: "1825", label: "Peristiwa pertama" },
+                { date: "1828", label: "Peristiwa kedua" },
+                { date: "1830", label: "Peristiwa ketiga" },
               ],
-              route: true,
-            },
-          };
+            };
+          case "stat":
+            return {
+              ...base(i),
+              visualType: "stat",
+              mood: "epic",
+              onScreenText: "Contoh angka",
+              stats: [{ value: 200000, label: "contoh angka" }],
+            };
+          case "comparison":
+            return {
+              ...base(i),
+              visualType: "comparison",
+              mood: "tense",
+              comparison: {
+                left: "Pihak A",
+                right: "Pihak B",
+                rows: [
+                  { label: "Pasukan", left: "30.000", right: "20.000", leftValue: 30000, rightValue: 20000 },
+                  { label: "Senjata", left: "Modern", right: "Terbatas" },
+                ],
+              },
+            };
+          case "quote":
+            return {
+              ...base(i),
+              visualType: "quote",
+              mood: "somber",
+              quote: { text: "Contoh kutipan tokoh.", source: "Contoh sumber" },
+            };
+          case "footage":
+            return { ...base(i), visualType: "footage", mood: "calm", keywords: ["ocean waves"] };
+          default:
+            return {
+              ...base(i),
+              visualType: "painting",
+              mood: "tense",
+              keywords: ["javanese war painting"],
+              timeline: { date: "1350", label: "Contoh tanggal penting" },
+            };
         }
-        return {
-          narration: `Adegan contoh ${i + 1}. ${filler}`,
-          onScreenText: "",
-          keywords: ["javanese kingdom painting"],
-          visualType: "painting",
-          mood: "tense",
-          timeline: i === 2 ? { date: "1350", label: "Contoh tanggal penting" } : undefined,
-        };
       });
       return { title: project.topic, scenes };
     },

@@ -24,12 +24,29 @@ export const jobKindLabel: Record<JobKind, string> = {
 
 export const visualTypeLabel: Record<string, string> = {
   title: "Kartu judul",
-  painting: "Lukisan",
-  archival_photo: "Foto arsip",
+  kinetic_text: "Teks kinetik",
   map: "Peta",
   timeline: "Timeline",
+  stat: "Statistik",
+  comparison: "Perbandingan",
+  quote: "Kutipan",
+  painting: "Lukisan",
+  archival_photo: "Foto arsip",
   footage: "Footage suasana",
 };
+
+export const styleOptions = [
+  {
+    value: "GRAPHIC",
+    label: "Full grafis",
+    description: "Peta, panah pasukan, statistik, perbandingan, timeline. Tanpa aset pihak ketiga.",
+  },
+  {
+    value: "ARCHIVAL",
+    label: "Arsip dan grafis",
+    description: "Lukisan, foto arsip, dan footage dari Wikimedia/Pexels, dicampur adegan grafis.",
+  },
+] as const;
 
 export const moodLabel: Record<string, string> = {
   epic: "Epik",

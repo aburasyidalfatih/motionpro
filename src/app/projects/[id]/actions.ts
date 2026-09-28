@@ -3,11 +3,13 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { moods, visualTypes } from "@/lib/ai/schemas";
+import { Prisma } from "@/generated/prisma/client";
+import { graphicDataSchema, moods, visualTypes, type GraphicData } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
 import { deleteVoiceover, hasActiveStageJob as hasActiveJob } from "@/lib/project-jobs";
 import { recomputeStatus } from "@/lib/project-status";
-import { estimateDurationMs, hasReached } from "@/lib/projects";
+import { asJson, estimateDurationMs, hasReached } from "@/lib/projects";
+import { kineticFallback } from "@/lib/scene-normalize";
 import { enqueueJob, type ScriptJobInput } from "@/lib/queue";
 import { startAssets } from "./storyboard/actions";
 import { startAudio } from "./audio/actions";
@@ -60,7 +62,20 @@ const sceneForm = z.object({
   keywords: z.string(),
   visualType: z.enum(visualTypes),
   mood: z.enum(moods),
+  graphicData: z.string().optional(),
 });
+
+// Data grafis dari kolom JSON; undefined bila tidak valid (data lama dipertahankan).
+function parseGraphicData(text: string | undefined): GraphicData | null | undefined {
+  if (text === undefined) return undefined;
+  if (!text.trim()) return null;
+  try {
+    const parsed = graphicDataSchema.safeParse(JSON.parse(text));
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 // F-10: editor adegan.
 export async function saveScene(sceneId: string, formData: FormData) {
@@ -68,6 +83,12 @@ export async function saveScene(sceneId: string, formData: FormData) {
   if (!parsed.success) return;
   const { narration, onScreenText, keywords, visualType, mood } = parsed.data;
   const before = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  let graphic = parseGraphicData(parsed.data.graphicData);
+  // Teks kinetik tanpa data memakai teks layar atau awal narasi.
+  if (visualType === "kinetic_text") {
+    const current = graphic === undefined ? ((before.graphicData ?? {}) as GraphicData) : (graphic ?? {});
+    if (!current.kinetic?.lines.length) graphic = { ...current, kinetic: kineticFallback({ narration, onScreenText }) };
+  }
   const narrationChanged = before.narration !== narration;
   await db.scene.update({
     where: { id: sceneId },
@@ -80,14 +101,14 @@ export async function saveScene(sceneId: string, formData: FormData) {
         .filter(Boolean),
       visualType,
       mood,
+      ...(graphic === undefined ? {} : { graphicData: graphic ? asJson(graphic) : Prisma.DbNull }),
       // Durasi dari voice over tetap dipakai selama narasinya tidak berubah.
       ...(narrationChanged ? { durationMs: estimateDurationMs(narration) } : {}),
     },
   });
-  if (narrationChanged) {
-    await deleteVoiceover(sceneId);
-    await recomputeStatus(before.projectId);
-  }
+  if (narrationChanged) await deleteVoiceover(sceneId);
+  // Tipe visual menentukan apakah adegan butuh aset, jadi status ikut dihitung ulang.
+  if (narrationChanged || before.visualType !== visualType) await recomputeStatus(before.projectId);
   refresh();
 }
 
@@ -133,7 +154,8 @@ export async function addSceneAfter(sceneId: string) {
       order: scene.order,
       narration: "Narasi adegan baru.",
       keywords: [],
-      visualType: "painting",
+      visualType: "kinetic_text",
+      graphicData: asJson({ kinetic: { lines: ["Narasi adegan baru"], emphasis: [] } }),
       mood: scene.mood,
       durationMs: estimateDurationMs("Narasi adegan baru."),
     },

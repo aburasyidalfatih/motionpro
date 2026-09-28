@@ -1,4 +1,4 @@
-import { TitleCardPlayer } from "./TitleCardPlayer";
+import { DemoPlayer } from "./DemoPlayer";
 
 export default function PreviewPage() {
   return (
@@ -6,12 +6,13 @@ export default function PreviewPage() {
       <div>
         <h1 className="text-2xl font-semibold">Pratinjau template</h1>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Kartu judul dari template sejarah, diputar langsung di browser dengan Remotion Player
-          tanpa render. Template lengkap (peta animasi, timeline, ken-burns) dibangun di Fase 3.
+          Contoh semua tipe adegan grafis (kartu judul, teks kinetik, peta pertempuran, timeline, perbandingan,
+          statistik, kutipan) dengan data contoh Pertempuran Surabaya. Diputar langsung di browser tanpa render, tanpa
+          aset gambar atau video.
         </p>
       </div>
       <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <TitleCardPlayer />
+        <DemoPlayer />
       </div>
     </div>
   );

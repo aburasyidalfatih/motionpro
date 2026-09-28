@@ -1,37 +1,48 @@
 import { UnrecoverableError } from "bullmq";
-import type { Scene } from "@/generated/prisma/client";
+import { Prisma, type Scene } from "@/generated/prisma/client";
 import { scriptAI } from "@/lib/ai";
-import { moods, visualTypes, type SceneDraft } from "@/lib/ai/schemas";
+import { moods, visualTypes, type GraphicData, type SceneDraft } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
 import { deleteVoiceover } from "@/lib/project-jobs";
 import { recomputeStatus } from "@/lib/project-status";
 import { asJson, estimateDurationMs, toProjectBrief } from "@/lib/projects";
+import { normalizeScene } from "@/lib/scene-normalize";
 import type { ScriptJobInput } from "@/lib/queue";
 import type { JobHandler } from "../types";
 
+const GRAPHIC_KEYS = ["map", "timeline", "kinetic", "events", "stats", "comparison", "quote"] as const;
+
+// Data grafis adegan dari jawaban Gemini; kunci yang kosong tidak disimpan.
+export function graphicDataOf(draft: Partial<SceneDraft>): GraphicData | null {
+  const data: GraphicData = {};
+  for (const key of GRAPHIC_KEYS) {
+    if (draft[key] !== undefined) Object.assign(data, { [key]: draft[key] });
+  }
+  return Object.keys(data).length ? data : null;
+}
+
 function sceneFields(draft: SceneDraft) {
-  const mapData = draft.map || draft.timeline ? { map: draft.map, timeline: draft.timeline } : undefined;
+  const graphicData = graphicDataOf(draft);
   return {
     narration: draft.narration,
     onScreenText: draft.onScreenText || null,
     keywords: draft.keywords,
     visualType: draft.visualType,
     mood: draft.mood,
-    mapData: mapData ? asJson(mapData) : undefined,
+    graphicData: graphicData ? asJson(graphicData) : Prisma.DbNull,
     durationMs: estimateDurationMs(draft.narration),
   };
 }
 
 function toDraft(scene: Scene): SceneDraft {
-  const data = (scene.mapData ?? {}) as Pick<SceneDraft, "map" | "timeline">;
+  const data = (scene.graphicData ?? {}) as GraphicData;
   return {
     narration: scene.narration,
     onScreenText: scene.onScreenText ?? "",
     keywords: scene.keywords,
-    visualType: visualTypes.find((v) => v === scene.visualType) ?? "painting",
+    visualType: visualTypes.find((v) => v === scene.visualType) ?? "kinetic_text",
     mood: moods.find((m) => m === scene.mood) ?? "calm",
-    map: data.map,
-    timeline: data.timeline,
+    ...data,
   };
 }
 
@@ -60,7 +71,10 @@ export const script: JobHandler = async ({ run, setProgress }) => {
       next: scenes[index + 1]?.narration,
       instruction: input.instruction ?? "",
     });
-    await db.scene.update({ where: { id: input.sceneId }, data: sceneFields(draft) });
+    await db.scene.update({
+      where: { id: input.sceneId },
+      data: sceneFields(normalizeScene(draft, project.style)),
+    });
     // Narasi berubah, jadi voice over lama tidak cocok lagi.
     await deleteVoiceover(input.sceneId);
     await recomputeStatus(project.id);
@@ -74,13 +88,19 @@ export const script: JobHandler = async ({ run, setProgress }) => {
   await db.$transaction(async (tx) => {
     await tx.scene.deleteMany({ where: { projectId: project.id } });
     await tx.scene.createMany({
-      data: result.scenes.map((draft, order) => ({ projectId: project.id, order, ...sceneFields(draft) })),
+      data: result.scenes.map((draft, order) => ({
+        projectId: project.id,
+        order,
+        ...sceneFields(normalizeScene(draft, project.style)),
+      })),
     });
     await tx.project.update({
       where: { id: project.id },
       data: { status: "SCRIPT_READY", failedStage: null },
     });
   });
+  // Adegan grafis tidak butuh aset, jadi proyek full grafis langsung "Aset siap".
+  await recomputeStatus(project.id);
 
   return { title: result.title, scenes: result.scenes.length };
 };

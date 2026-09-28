@@ -11,6 +11,7 @@ const schema = z.object({
   targetMinutes: z.coerce.number().int().min(1, "Durasi minimal 1 menit").max(15, "Durasi maksimal 15 menit"),
   language: z.enum(["id", "en"]),
   tone: z.enum(toneOptions.map((t) => t.value) as [string, ...string[]]),
+  style: z.enum(["GRAPHIC", "ARCHIVAL"]),
 });
 
 export type NewProjectState = { error?: string };

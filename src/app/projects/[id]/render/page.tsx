@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { VideoCard } from "@/components/VideoCard";
+import { needsAsset } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
 import { formatDuration } from "@/lib/projects";
 import { isSceneJob } from "@/lib/queue";
@@ -27,7 +28,7 @@ export default async function RenderPage({ params }: PageProps<"/projects/[id]/r
 
   const busy = project.jobs.some((j) => !isSceneJob(j.input));
   const scenes = project.scenes;
-  const withoutAsset = scenes.filter((s) => !s.assets[0] && !s.mapData).length;
+  const withoutAsset = scenes.filter((s) => needsAsset(s.visualType) && !s.assets[0]).length;
   const withoutVoice = scenes.filter((s) => !s.voiceover).length;
   const canRender = scenes.length > 0 && withoutAsset === 0 && withoutVoice === 0;
   const props = await buildVideoProps(project, browserUrls, { subtitles: true });

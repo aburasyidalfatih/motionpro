@@ -1,8 +1,13 @@
 # MotionPro
 
-Studio produksi video motion graphic sejarah berbasis AI: riset topik dengan Gemini, naskah per adegan, aset (lukisan, arsip, peta), voice over, render 1080p dengan Remotion, lalu galeri dan unggah ke YouTube.
+Studio produksi video motion graphic **sejarah militer dan geopolitik** berbasis AI: riset topik dengan Gemini, naskah per adegan, visual grafis (peta pertempuran, panah pasukan, timeline, statistik, perbandingan, teks kinetik, kutipan), voice over, render 1080p dengan Remotion, lalu galeri dan unggah ke YouTube.
 
-Acuan gaya template pertama: Kings and Generals dan Epic History TV (peta animasi, lukisan dengan efek ken-burns, narasi sinematik).
+Dua gaya video per proyek:
+
+- **Full grafis** (default): semua adegan digambar oleh template React, tanpa gambar atau video dari pihak ketiga.
+- **Arsip dan grafis**: lukisan, foto arsip (Wikimedia Commons), dan footage (Pexels), dicampur adegan grafis.
+
+Acuan gaya: Kings and Generals, RealLifeLore, Caspian Report.
 
 Rencana lengkap ada di [PRD MotionPro](https://claude.ai/code/artifact/2c3fda1a-4c00-4303-aed1-56ba4f153c18).
 
@@ -12,6 +17,8 @@ Rencana lengkap ada di [PRD MotionPro](https://claude.ai/code/artifact/2c3fda1a-
 - **Fase 1 (Riset dan naskah):** proyek baru → riset otomatis dengan Gemini + Google Search → research brief bersumber yang bisa diedit → naskah per adegan (narasi, teks layar, kata kunci aset, tipe visual, data peta dan timeline) → editor adegan (edit, urutkan, tambah, hapus, tulis ulang satu adegan dengan Gemini).
 - **Fase 2 (Aset dan audio):** storyboard dengan aset otomatis per adegan (lukisan dan arsip dari Wikimedia Commons, footage dari Pexels), ganti kandidat, cari ulang, unggah aset sendiri, lisensi tercatat; voice over per adegan dengan Gemini TTS (durasi adegan mengikuti audio, waktu per kata untuk subtitle); musik latar dari library sendiri.
 - **Fase 3 (Template, render, galeri):** template video sejarah (kartu judul, lukisan dengan ken-burns, footage, peta animasi dengan rute, label, penanda tahun, subtitle karaoke, crossfade, musik dengan ducking, SFX), pratinjau di browser, render MP4 1080p 30 fps (H.264, AAC) di antrian dengan progress, gambar mini dan file SRT, galeri dengan unduhan.
+
+- **Niche militer dan geopolitik:** gaya full grafis dengan 7 tipe adegan grafis, peta pertempuran (pihak, panah pasukan, zona kekuasaan, garis pantai detail untuk peta tingkat kota), editor data grafis per adegan.
 
 Berikutnya: Fase 4 (unggah ke YouTube dan deploy ke VPS).
 
@@ -72,7 +79,7 @@ Tanpa API key, isi `AI_PROVIDER=fake` di `.env` untuk menguji alur aplikasi deng
 
 - Tab **Render** di halaman proyek memutar pratinjau video lengkap di browser, lalu **Render video 1080p** memasukkan render ke antrian. Hasilnya (MP4, gambar mini, SRT) disimpan di `storage/videos/` dan tampil di **Galeri**.
 - Render memakan hampir seluruh CPU. Video 10 menit butuh sekitar 10–40 menit tergantung komputer. Atur jumlah tab Chrome paralel lewat `RENDER_CONCURRENCY`.
-- Coba template tanpa data proyek: `npm run studio`, lalu pilih komposisi **HistoryVideo**.
+- Coba template tanpa data proyek: menu **Pratinjau template**, atau `npm run studio` lalu pilih komposisi **HistoryVideo** (data contoh Pertempuran Surabaya).
 
 ## Perintah
 

@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
-import { toneOptions } from "@/lib/labels";
+import { styleOptions, toneOptions } from "@/lib/labels";
 import { createProject, type NewProjectState } from "./actions";
 
 const field =
@@ -20,7 +20,7 @@ export function NewProjectForm() {
           required
           minLength={5}
           maxLength={200}
-          placeholder="Contoh: Kejayaan dan keruntuhan Majapahit"
+          placeholder="Contoh: Pertempuran Surabaya 1945, atau Kenapa Laut China Selatan diperebutkan?"
           className={field}
         />
       </label>
@@ -50,12 +50,21 @@ export function NewProjectForm() {
         </select>
       </label>
 
-      <label className="block text-sm font-medium">
-        Template
-        <select disabled className={`${field} opacity-60`}>
-          <option>Sejarah: peta dan lukisan (gaya Kings and Generals / Epic History TV)</option>
-        </select>
-      </label>
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">Gaya video</legend>
+        {styleOptions.map((option, i) => (
+          <label
+            key={option.value}
+            className="flex cursor-pointer gap-3 rounded-md border border-zinc-300 p-3 text-sm has-[:checked]:border-zinc-900 dark:border-zinc-700 dark:has-[:checked]:border-zinc-100"
+          >
+            <input type="radio" name="style" value={option.value} defaultChecked={i === 0} className="mt-1" />
+            <span>
+              <span className="font-medium">{option.label}</span>
+              <span className="block text-zinc-600 dark:text-zinc-400">{option.description}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
 
       {state.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 

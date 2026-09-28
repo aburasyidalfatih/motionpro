@@ -1,7 +1,7 @@
 import type { Asset, Project, Scene, SceneAsset, Voiceover } from "@/generated/prisma/client";
 import { libraryUrl, listSfx } from "@/lib/library";
 import { fileUrl } from "@/lib/storage";
-import type { HistoryVideoProps, SceneMap, WordTiming } from "@/remotion/history/types";
+import type { GraphicData, HistoryVideoProps, WordTiming } from "@/remotion/history/types";
 
 export type ProjectForVideo = Project & {
   scenes: (Scene & { assets: (SceneAsset & { asset: Asset })[]; voiceover: Voiceover | null })[];
@@ -39,13 +39,14 @@ export async function buildVideoProps(
   options: { subtitles: boolean },
 ): Promise<HistoryVideoProps> {
   return {
+    style: project.style,
     title: project.scenes.find((s) => s.visualType === "title")?.onScreenText || project.topic,
     subtitles: options.subtitles,
     musicSrc: project.musicTrack ? urls.library(`music/${project.musicTrack}`) : null,
     sfx: await pickSfx(urls),
     scenes: project.scenes.map((scene) => {
       const asset = scene.assets[0]?.asset;
-      const extras = (scene.mapData ?? {}) as { map?: SceneMap; timeline?: { date: string; label: string } };
+      const graphic = (scene.graphicData ?? {}) as GraphicData;
       return {
         id: scene.id,
         durationMs: scene.durationMs ?? 5000,
@@ -62,8 +63,7 @@ export async function buildVideoProps(
               durationMs: asset.durationMs,
             }
           : null,
-        map: extras.map ?? null,
-        timeline: extras.timeline ?? null,
+        graphic,
       };
     }),
   };

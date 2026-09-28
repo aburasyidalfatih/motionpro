@@ -2,6 +2,8 @@ import type { AssetRanking, Brief, ResearchPlan, SceneDraft, Script } from "./sc
 
 export type ProjectBrief = {
   topic: string;
+  // GRAPHIC: semua adegan grafis; ARCHIVAL: lukisan, arsip, footage, dan grafis.
+  style: "GRAPHIC" | "ARCHIVAL";
   language: string;
   tone: string;
   targetMinutes: number;

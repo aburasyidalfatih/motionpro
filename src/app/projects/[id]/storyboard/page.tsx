@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { SubmitButton } from "@/components/SubmitButton";
 import { pexelsEnabled } from "@/lib/assets";
+import { needsAsset } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
 import { isSceneJob } from "@/lib/queue";
 import { startAssets } from "./actions";
@@ -48,19 +49,50 @@ function StoryboardBody({ project }: { project: ProjectData }) {
     );
   }
 
-  const withAsset = scenes.filter((s) => s.assets.some((a) => a.selected)).length;
-  const unsearched = scenes.filter((s) => !s.assets.some((a) => a.asset.provider !== "upload")).length;
-  const hasFootage = scenes.some((s) => s.visualType === "footage");
+  // Hanya adegan lukisan, foto arsip, dan footage yang butuh aset; adegan grafis digambar template.
+  const assetScenes = scenes
+    .map((scene, index) => ({ scene, index }))
+    .filter(({ scene }) => needsAsset(scene.visualType));
+  const graphicCount = scenes.length - assetScenes.length;
+  const withAsset = assetScenes.filter(({ scene }) => scene.assets.some((a) => a.selected)).length;
+  const unsearched = assetScenes.filter(({ scene }) => !scene.assets.some((a) => a.asset.provider !== "upload")).length;
+  const hasFootage = assetScenes.some(({ scene }) => scene.visualType === "footage");
+
+  const graphicNote = graphicCount > 0 && (
+    <p className="rounded-md border border-zinc-200 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+      {graphicCount} adegan grafis (peta, teks kinetik, timeline, statistik, perbandingan, kutipan) digambar otomatis
+      oleh template dan tidak butuh aset. Lihat hasilnya di tab{" "}
+      <Link href={`/projects/${project.id}/render`} className="underline">
+        Render
+      </Link>
+      .
+    </p>
+  );
+
+  if (assetScenes.length === 0) {
+    return (
+      <div className="space-y-4">
+        {graphicNote}
+        <Link
+          href={`/projects/${project.id}/audio`}
+          className="inline-block rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        >
+          Lanjut ke audio
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {graphicNote}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {withAsset} dari {scenes.length} adegan punya aset. Klik gambar kecil untuk mengganti aset, cari ulang
-          dengan kata kunci lain, atau unggah aset sendiri.
+          {withAsset} dari {assetScenes.length} adegan lukisan, arsip, dan footage punya aset. Klik gambar kecil untuk
+          mengganti aset, cari ulang dengan kata kunci lain, atau unggah aset sendiri.
         </p>
         <div className="flex gap-2">
-          {unsearched < scenes.length && (
+          {unsearched < assetScenes.length && (
             <form action={startAssets.bind(null, project.id, true)}>
               <SubmitButton
                 variant="secondary"
@@ -90,7 +122,7 @@ function StoryboardBody({ project }: { project: ProjectData }) {
       )}
 
       <ol className="space-y-4">
-        {scenes.map((scene, index) => (
+        {assetScenes.map(({ scene, index }) => (
           <SceneAssets key={scene.id} scene={scene} index={index} busy={busy} />
         ))}
       </ol>

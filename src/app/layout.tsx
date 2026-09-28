@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "MotionPro",
-  description: "Studio produksi video motion graphic sejarah berbasis AI",
+  description: "Studio produksi video motion graphic sejarah militer dan geopolitik berbasis AI",
 };
 
 const nav = [

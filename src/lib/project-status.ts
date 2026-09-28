@@ -1,7 +1,8 @@
+import { assetVisualTypes } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
 
-// Status tahap aset dan audio dihitung dari datanya: semua adegan punya aset
-// terpilih → ASSETS_READY; ditambah semua adegan punya voice over → AUDIO_READY.
+// Status tahap aset dan audio dihitung dari datanya: semua adegan yang butuh
+// aset punya aset terpilih → ASSETS_READY; ditambah semua adegan punya voice over → AUDIO_READY.
 // Dipanggil setelah job aset/audio dan setelah adegan, aset, atau suara diubah.
 export async function recomputeStatus(projectId: string) {
   const project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
@@ -12,12 +13,15 @@ export async function recomputeStatus(projectId: string) {
     (project.status === "FAILED" && ["ASSETS", "AUDIO", "RENDER"].includes(project.failedStage ?? ""));
   if (!inAssetAudioStage) return;
 
-  const [scenes, withAsset, withVoice] = await Promise.all([
+  // Hanya adegan bertipe lukisan, foto arsip, dan footage yang butuh aset.
+  const assetTypes = [...assetVisualTypes];
+  const [scenes, needingAsset, withAsset, withVoice] = await Promise.all([
     db.scene.count({ where: { projectId } }),
-    db.scene.count({ where: { projectId, assets: { some: { selected: true } } } }),
+    db.scene.count({ where: { projectId, visualType: { in: assetTypes } } }),
+    db.scene.count({ where: { projectId, visualType: { in: assetTypes }, assets: { some: { selected: true } } } }),
     db.scene.count({ where: { projectId, voiceover: { isNot: null } } }),
   ]);
-  const assetsDone = scenes > 0 && withAsset === scenes;
+  const assetsDone = scenes > 0 && withAsset === needingAsset;
   const audioDone = scenes > 0 && withVoice === scenes;
   const status = assetsDone && audioDone ? "AUDIO_READY" : assetsDone ? "ASSETS_READY" : "SCRIPT_READY";
 

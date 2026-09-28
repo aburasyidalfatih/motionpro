@@ -35,22 +35,60 @@ export const briefSchema = z.object({
 });
 export type Brief = z.infer<typeof briefSchema>;
 
-export const visualTypes = ["title", "painting", "archival_photo", "map", "timeline", "footage"] as const;
+// Tipe visual adegan. Tipe grafis digambar sepenuhnya oleh template (tanpa aset
+// pihak ketiga); hanya ASSET_VISUAL_TYPES yang butuh gambar atau video.
+export const graphicVisualTypes = ["title", "kinetic_text", "map", "timeline", "stat", "comparison", "quote"] as const;
+export const assetVisualTypes = ["painting", "archival_photo", "footage"] as const;
+export const visualTypes = [...graphicVisualTypes, ...assetVisualTypes] as const;
+export type VisualType = (typeof visualTypes)[number];
+
+export function needsAsset(visualType: string) {
+  return (assetVisualTypes as readonly string[]).includes(visualType);
+}
+
 export const moods = ["epic", "tense", "calm", "somber", "hopeful", "mysterious"] as const;
 
 export const mapDataSchema = z.object({
-  caption: z.string().describe("Keterangan singkat peta, misalnya Wilayah Majapahit abad ke-14"),
+  caption: z.string().describe("Keterangan singkat peta, misalnya Pertempuran Surabaya, November 1945"),
   points: z
     .array(
       z.object({
         label: z.string(),
         lat: z.number().min(-90).max(90),
         lng: z.number().min(-180).max(180),
+        side: z.number().int().optional().describe("Indeks pihak di sides bila titik milik salah satu pihak"),
       }),
     )
     .min(1)
     .max(12),
-  route: z.boolean().describe("true bila titik-titik membentuk rute berurutan, misalnya gerak pasukan"),
+  route: z.boolean().describe("true bila titik-titik membentuk rute berurutan, misalnya jalur pelayaran"),
+  sides: z
+    .array(z.string())
+    .max(3)
+    .optional()
+    .describe("Nama pihak yang bertikai atau bersaing, misalnya ['Sekutu', 'Pejuang Indonesia']"),
+  arrows: z
+    .array(
+      z.object({
+        from: z.number().int().describe("Indeks titik asal"),
+        to: z.number().int().describe("Indeks titik tujuan"),
+        side: z.number().int().describe("Indeks pihak yang bergerak"),
+      }),
+    )
+    .max(8)
+    .optional()
+    .describe("Panah gerak pasukan, armada, atau pengaruh"),
+  zones: z
+    .array(
+      z.object({
+        point: z.number().int().describe("Indeks titik pusat"),
+        radiusKm: z.number().min(5).max(3000),
+        side: z.number().int(),
+      }),
+    )
+    .max(6)
+    .optional()
+    .describe("Wilayah kekuasaan atau area pengaruh berbentuk lingkaran"),
 });
 export type MapData = z.infer<typeof mapDataSchema>;
 
@@ -59,17 +97,75 @@ export const timelineMarkSchema = z.object({
   label: z.string(),
 });
 
+export const kineticSchema = z.object({
+  lines: z.array(z.string().describe("Baris pendek, maksimal 6 kata")).min(1).max(3),
+  emphasis: z.array(z.string()).max(4).describe("Kata yang ditekankan (disorot), diambil dari lines"),
+});
+
+export const eventsSchema = z.array(timelineMarkSchema).min(2).max(7);
+
+export const statsSchema = z
+  .array(
+    z.object({
+      value: z.number().describe("Angka, misalnya 40000"),
+      prefix: z.string().optional().describe("Awalan, misalnya 'US$'"),
+      suffix: z.string().optional().describe("Akhiran, misalnya '%' atau ' km'"),
+      label: z.string().describe("Arti angka, misalnya 'prajurit Mongol'"),
+    }),
+  )
+  .min(1)
+  .max(3);
+
+export const comparisonSchema = z.object({
+  left: z.string().describe("Nama pihak kiri"),
+  right: z.string().describe("Nama pihak kanan"),
+  rows: z
+    .array(
+      z.object({
+        label: z.string().describe("Aspek yang dibandingkan, misalnya 'Jumlah pasukan'"),
+        left: z.string(),
+        right: z.string(),
+        leftValue: z.number().optional().describe("Nilai angka pihak kiri bila bisa dibandingkan"),
+        rightValue: z.number().optional(),
+      }),
+    )
+    .min(2)
+    .max(5),
+});
+
+export const quoteSchema = z.object({
+  text: z.string(),
+  source: z.string().describe("Siapa yang mengucapkan atau dari dokumen apa"),
+});
+
+// Data grafis per adegan, disimpan di Scene.graphicData.
+export const graphicDataSchema = z.object({
+  map: mapDataSchema.optional(),
+  timeline: timelineMarkSchema.optional(),
+  kinetic: kineticSchema.optional(),
+  events: eventsSchema.optional(),
+  stats: statsSchema.optional(),
+  comparison: comparisonSchema.optional(),
+  quote: quoteSchema.optional(),
+});
+export type GraphicData = z.infer<typeof graphicDataSchema>;
+
 export const sceneSchema = z.object({
   narration: z.string().describe("Teks yang dibacakan narator"),
   onScreenText: z.string().describe("Teks singkat di layar, boleh kosong"),
   keywords: z
     .array(z.string().describe("Kata kunci pencarian aset dalam bahasa Inggris"))
-    .min(1)
-    .max(8),
+    .max(8)
+    .describe("Wajib untuk painting, archival_photo, footage; boleh kosong untuk tipe grafis"),
   visualType: z.enum(visualTypes),
   mood: z.enum(moods),
-  map: mapDataSchema.optional().describe("Wajib diisi bila visualType = map"),
-  timeline: timelineMarkSchema.optional().describe("Diisi bila adegan menandai tanggal penting"),
+  map: mapDataSchema.optional().describe("Wajib bila visualType = map"),
+  timeline: timelineMarkSchema.optional().describe("Penanda tanggal penting di pojok layar, untuk tipe apa pun"),
+  kinetic: kineticSchema.optional().describe("Wajib bila visualType = kinetic_text"),
+  events: eventsSchema.optional().describe("Wajib bila visualType = timeline"),
+  stats: statsSchema.optional().describe("Wajib bila visualType = stat"),
+  comparison: comparisonSchema.optional().describe("Wajib bila visualType = comparison"),
+  quote: quoteSchema.optional().describe("Wajib bila visualType = quote"),
 });
 export type SceneDraft = z.infer<typeof sceneSchema>;
 

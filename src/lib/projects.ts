@@ -21,12 +21,14 @@ export function hasReached(status: ProjectStatus, stage: ProjectStatus) {
 
 export function toProjectBrief(project: {
   topic: string;
+  style: "GRAPHIC" | "ARCHIVAL";
   language: string;
   tone: string;
   targetMinutes: number;
 }): ProjectBrief {
   return {
     topic: project.topic,
+    style: project.style,
     language: project.language,
     tone: project.tone,
     targetMinutes: project.targetMinutes,

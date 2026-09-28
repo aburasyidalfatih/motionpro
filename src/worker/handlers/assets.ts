@@ -1,6 +1,7 @@
 import { UnrecoverableError } from "bullmq";
 import type { Scene } from "@/generated/prisma/client";
 import { scriptAI } from "@/lib/ai";
+import { assetVisualTypes } from "@/lib/ai/schemas";
 import type { ProjectBrief } from "@/lib/ai/types";
 import { findCandidates } from "@/lib/assets";
 import { ensureLocal } from "@/lib/assets/download";
@@ -139,9 +140,14 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
     });
   }
 
-  // Adegan yang belum punya kandidat hasil pencarian.
+  // Adegan lukisan/arsip/footage yang belum punya kandidat hasil pencarian.
+  // Adegan grafis digambar template, jadi tidak dicarikan aset.
   const scenes = await db.scene.findMany({
-    where: { projectId: project.id, assets: { none: { asset: { provider: { not: "upload" } } } } },
+    where: {
+      projectId: project.id,
+      visualType: { in: [...assetVisualTypes] },
+      assets: { none: { asset: { provider: { not: "upload" } } } },
+    },
     include: { assets: { where: { selected: true } } },
     orderBy: { order: "asc" },
   });

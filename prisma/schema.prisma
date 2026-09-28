@@ -23,6 +23,13 @@ enum ProjectStatus {
   FAILED
 }
 
+// Gaya visual video: full grafis (semua adegan digambar template, tanpa aset
+// pihak ketiga) atau arsip (lukisan, foto arsip, footage, ditambah grafis).
+enum VideoStyle {
+  GRAPHIC
+  ARCHIVAL
+}
+
 enum ProjectMode {
   EDITOR
   AUTO
@@ -83,6 +90,7 @@ model Project {
   language      String        @default("id")
   tone          String        @default("dokumenter")
   templateId    String        @default("sejarah-peta")
+  style         VideoStyle    @default(GRAPHIC)
   // Suara Gemini TTS dan instruksi gaya bicara narator.
   voiceId       String?
   voiceStyle    String?
@@ -142,11 +150,12 @@ model Scene {
   onScreenText String?
   // Kata kunci pencarian aset dalam bahasa Inggris.
   keywords     String[]
-  visualType   String   @default("image")
+  visualType   String   @default("kinetic_text")
   mood         String?
   durationMs   Int?
-  // Data peta dan timeline: lokasi, rute, tanggal (lihat F-29).
-  mapData      Json?
+  // Data grafis adegan: peta, panah, timeline, statistik, perbandingan, kutipan
+  // (lihat GraphicData di src/lib/ai/schemas.ts). Kolom lama bernama mapData.
+  graphicData  Json?    @map("mapData")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

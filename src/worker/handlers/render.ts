@@ -3,6 +3,7 @@ import path from "node:path";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { UnrecoverableError } from "bullmq";
+import { needsAsset } from "@/lib/ai/schemas";
 import { ensureLocal } from "@/lib/assets/download";
 import { db } from "@/lib/db";
 import { saveFile, storagePath } from "@/lib/storage";
@@ -37,7 +38,7 @@ export const render: JobHandler = async ({ run, setProgress }) => {
   const input = (run.input ?? {}) as RenderJobInput;
   const project = await db.project.findUniqueOrThrow({ where: { id: run.projectId }, include: projectVideoInclude });
 
-  const missing = project.scenes.filter((s) => !s.voiceover || (!s.assets[0] && !s.mapData)).length;
+  const missing = project.scenes.filter((s) => !s.voiceover || (needsAsset(s.visualType) && !s.assets[0])).length;
   if (project.scenes.length === 0 || missing > 0) {
     throw new UnrecoverableError(`${missing} adegan belum punya aset atau voice over`);
   }

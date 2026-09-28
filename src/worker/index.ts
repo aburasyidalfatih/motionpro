@@ -38,6 +38,9 @@ const worker = new Worker<PipelineJobData>(
   async (job) => {
     const run = await db.jobRun.findUnique({ where: { id: job.data.jobRunId } });
     if (!run) throw new UnrecoverableError(`JobRun ${job.data.jobRunId} tidak ditemukan`);
+    // Job yang sudah sukses tidak dijalankan ulang (misalnya bila Redis dipulihkan
+    // dari snapshot lama dan BullMQ mengira job itu macet).
+    if (run.status === "SUCCEEDED") return;
 
     const handler = handlers[run.kind];
     if (!handler) throw new UnrecoverableError(`Belum ada handler untuk job ${run.kind}`);
@@ -74,6 +77,10 @@ worker.on("failed", async (job, err) => {
   if (!job) return;
   const attemptsLeft = (job.opts.attempts ?? 1) - job.attemptsMade;
   const final = attemptsLeft <= 0 || err instanceof UnrecoverableError;
+  // Kegagalan BullMQ untuk job yang di database sudah sukses (misalnya "stalled"
+  // setelah Redis dipulihkan) tidak boleh menimpa hasilnya.
+  const existing = await db.jobRun.findUnique({ where: { id: job.data.jobRunId } }).catch(() => null);
+  if (existing?.status === "SUCCEEDED") return;
   const run = await db.jobRun
     .update({
       where: { id: job.data.jobRunId },

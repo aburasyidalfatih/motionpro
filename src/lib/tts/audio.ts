@@ -38,7 +38,53 @@ export function speechBounds(pcm: Buffer, sampleRate: number, threshold = 600) {
   let end = samples - window;
   while (end > start && !loud(end)) end -= window;
   const toMs = (s: number) => Math.round((s / sampleRate) * 1000);
-  return start >= samples ? { startMs: 0, endMs: pcmDurationMs(pcm, sampleRate) } : { startMs: toMs(start), endMs: toMs(end + window) };
+  return start >= samples
+    ? { startMs: 0, endMs: pcmDurationMs(pcm, sampleRate) }
+    : { startMs: toMs(start), endMs: toMs(end + window) };
+}
+
+// Gemini TTS kadang menambahkan letupan pendek atau ledakan suara (clipping)
+// di awal atau akhir audio, terpisah dari ucapan oleh hening. Bagian itu
+// dibuang, hening di tepi dipangkas, dan tepinya diberi fade singkat.
+export function trimEdgeNoise(pcm: Buffer, sampleRate: number, threshold = 600) {
+  const samples = pcm.length / 2;
+  const window = Math.max(1, Math.round(sampleRate / 100)); // 10 ms
+  const windowMs = (n: number) => (n * window * 1000) / sampleRate;
+
+  // Rentang bersuara (dalam jendela 10 ms), jeda di bawah 150 ms digabung.
+  type Run = { start: number; end: number; clipped: boolean };
+  const runs: Run[] = [];
+  for (let w = 0; w * window < samples; w++) {
+    let peak = 0;
+    for (let j = w * window; j < Math.min((w + 1) * window, samples); j++) {
+      peak = Math.max(peak, Math.abs(pcm.readInt16LE(j * 2)));
+    }
+    if (peak < threshold) continue;
+    const last = runs.at(-1);
+    if (last && windowMs(w - last.end) < 150) {
+      last.end = w + 1;
+      last.clipped ||= peak >= 32_000;
+    } else {
+      runs.push({ start: w, end: w + 1, clipped: peak >= 32_000 });
+    }
+  }
+  const noise = (run: Run) =>
+    windowMs(run.end - run.start) < 250 || (run.clipped && windowMs(run.end - run.start) < 600);
+  while (runs.length > 1 && noise(runs[0])) runs.shift();
+  while (runs.length > 1 && noise(runs.at(-1)!)) runs.pop();
+  if (runs.length === 0) return pcm;
+
+  const from = Math.max(0, runs[0].start * window - Math.round(sampleRate * 0.1));
+  const to = Math.min(samples, runs.at(-1)!.end * window + Math.round(sampleRate * 0.15));
+  const out = Buffer.from(pcm.subarray(from * 2, to * 2));
+  const fade = Math.min(Math.round(sampleRate * 0.015), Math.floor((to - from) / 2));
+  for (let i = 0; i < fade; i++) {
+    const gain = i / fade;
+    out.writeInt16LE(Math.round(out.readInt16LE(i * 2) * gain), i * 2);
+    const j = to - from - 1 - i;
+    out.writeInt16LE(Math.round(out.readInt16LE(j * 2) * gain), j * 2);
+  }
+  return out;
 }
 
 // F-20: Gemini TTS tidak memberi waktu per kata, jadi waktunya diperkirakan:

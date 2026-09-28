@@ -1,6 +1,6 @@
 import { fatalError, geminiClient } from "@/lib/ai/client";
 import { estimateDurationMs } from "@/lib/projects";
-import { pcmDurationMs, tonePcm } from "./audio";
+import { speechBounds, tonePcm, trimEdgeNoise } from "./audio";
 
 // Voice over dengan Gemini TTS. Model dan suara bisa diganti lewat .env dan
 // halaman Audio; mode tiruan (AI_PROVIDER=fake) menghasilkan nada pengganti.
@@ -8,8 +8,10 @@ import { pcmDurationMs, tonePcm } from "./audio";
 const DEFAULT_MODEL = "gemini-3.8-flash-tts";
 
 export const DEFAULT_VOICE = "Charon";
-export const DEFAULT_VOICE_STYLE =
-  "Bacakan sebagai narator dokumenter sejarah: suara tenang dan berwibawa, tempo sedang, jeda wajar antar kalimat.";
+// Tanpa instruksi gaya secara bawaan: model TTS kadang tetap membacakan
+// instruksinya, dan suara seperti Charon sudah cocok untuk narasi dokumenter.
+export const DEFAULT_VOICE_STYLE = "";
+export const VOICE_STYLE_EXAMPLE = "Tenang dan berwibawa, tempo sedang";
 
 // Beberapa suara bawaan Gemini yang cocok untuk narasi dokumenter.
 export const VOICE_SUGGESTIONS = [
@@ -36,11 +38,16 @@ function ttsPrompt(text: string, style: string) {
   return `### DIRECTOR'S NOTES\n${style.trim()}\n\n### TRANSCRIPT\n${text}`;
 }
 
-// Audio jauh lebih panjang dari perkiraan hampir pasti berarti instruksi ikut
-// dibacakan (atau model mengarang tambahan).
-function tooLong(speech: Speech, text: string) {
-  const expected = estimateDurationMs(text);
-  return pcmDurationMs(speech.pcm, speech.sampleRate) > Math.max(expected * 1.8, expected + 4_000);
+// Lama bagian bersuara, tanpa hening di awal dan akhir.
+function spokenMs(speech: Speech) {
+  const { startMs, endMs } = speechBounds(speech.pcm, speech.sampleRate);
+  return endMs - startMs;
+}
+
+// Ucapan yang lebih panjang dari narasi ditambah separuh panjang instruksi
+// hampir pasti berarti instruksinya ikut dibacakan.
+function readsStyle(speech: Speech, text: string, style: string) {
+  return spokenMs(speech) > estimateDurationMs(text) * 1.15 + estimateDurationMs(style) * 0.5;
 }
 
 async function generateSpeech(model: string, prompt: string, voice: string): Promise<Speech> {
@@ -69,11 +76,12 @@ export async function synthesize(text: string, options: { voice: string; style: 
   }
 
   const model = process.env.GEMINI_TTS_MODEL || DEFAULT_MODEL;
-  const speech = await generateSpeech(model, ttsPrompt(text, options.style), options.voice);
-  if (!options.style.trim() || !tooLong(speech, text)) return speech;
+  const clean = (speech: Speech) => ({ ...speech, pcm: trimEdgeNoise(speech.pcm, speech.sampleRate) });
+  const speech = clean(await generateSpeech(model, ttsPrompt(text, options.style), options.voice));
+  if (!options.style.trim() || !readsStyle(speech, text, options.style)) return speech;
 
   // Coba sekali lagi hanya dengan teks narasi, tanpa instruksi gaya.
-  console.warn(`[tts] audio terlalu panjang untuk "${text.slice(0, 40)}...", diulang tanpa instruksi gaya`);
-  const plain = await generateSpeech(model, text, options.voice);
-  return pcmDurationMs(plain.pcm, plain.sampleRate) < pcmDurationMs(speech.pcm, speech.sampleRate) ? plain : speech;
+  console.warn(`[tts] instruksi gaya ikut terbaca untuk "${text.slice(0, 40)}...", diulang tanpa instruksi`);
+  const plain = clean(await generateSpeech(model, text, options.voice));
+  return spokenMs(plain) < spokenMs(speech) ? plain : speech;
 }

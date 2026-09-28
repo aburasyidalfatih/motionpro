@@ -8,7 +8,7 @@ import { libraryUrl, listMusic, listSfx, type LibraryTrack } from "@/lib/library
 import { formatDuration } from "@/lib/projects";
 import { isSceneJob, type AudioJobInput } from "@/lib/queue";
 import { fileUrl } from "@/lib/storage";
-import { DEFAULT_VOICE, DEFAULT_VOICE_STYLE, VOICE_SUGGESTIONS } from "@/lib/tts";
+import { DEFAULT_VOICE, DEFAULT_VOICE_STYLE, VOICE_STYLE_EXAMPLE, VOICE_SUGGESTIONS } from "@/lib/tts";
 import { revoiceScene, saveMusic, saveVoiceSettings, startAudio } from "./actions";
 
 const field = "mt-1 w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700";
@@ -66,12 +66,7 @@ function AudioBody({ project, music, sfxCount }: { project: ProjectData; music: 
         <form action={saveVoiceSettings.bind(null, project.id)} className="grid max-w-2xl gap-4">
           <label className="block text-sm font-medium">
             Suara Gemini TTS
-            <input
-              name="voiceId"
-              list="voices"
-              defaultValue={project.voiceId ?? DEFAULT_VOICE}
-              className={field}
-            />
+            <input name="voiceId" list="voices" defaultValue={project.voiceId ?? DEFAULT_VOICE} className={field} />
             <datalist id="voices">
               {VOICE_SUGGESTIONS.map((v) => (
                 <option key={v.name} value={v.name}>
@@ -81,13 +76,18 @@ function AudioBody({ project, music, sfxCount }: { project: ProjectData; music: 
             </datalist>
           </label>
           <label className="block text-sm font-medium">
-            Gaya bicara (tempo, nada, emosi)
+            Gaya bicara (opsional)
             <textarea
               name="voiceStyle"
               rows={2}
               defaultValue={project.voiceStyle ?? DEFAULT_VOICE_STYLE}
+              placeholder={`Misalnya: ${VOICE_STYLE_EXAMPLE}`}
               className={field}
             />
+            <span className="mt-1 block text-xs font-normal text-zinc-500">
+              Kosongkan agar narasi dibacakan apa adanya. Instruksi gaya kadang ikut terbaca; bila terdeteksi, adegan
+              itu diulang tanpa instruksi.
+            </span>
           </label>
           <div>
             <SubmitButton variant="secondary" pendingText="Menyimpan...">
@@ -96,8 +96,8 @@ function AudioBody({ project, music, sfxCount }: { project: ProjectData; music: 
           </div>
         </form>
         <p className="text-xs text-zinc-500">
-          Setelah mengganti suara atau gaya, klik <span className="font-medium">Buat ulang semua</span> agar semua adegan
-          memakai suara baru.
+          Setelah mengganti suara atau gaya, klik <span className="font-medium">Buat ulang semua</span> agar semua
+          adegan memakai suara baru.
         </p>
       </section>
 
@@ -197,8 +197,8 @@ function AudioBody({ project, music, sfxCount }: { project: ProjectData; music: 
           <audio controls preload="none" src={libraryUrl(`music/${currentTrack.path}`)} className="w-full max-w-2xl" />
         )}
         <p className="text-xs text-zinc-500">
-          Musik otomatis mengecil saat narasi berbicara, dan {sfxCount} efek suara dari <code>library/sfx/</code> dipasang
-          di transisi. Keduanya diterapkan saat render.
+          Musik otomatis mengecil saat narasi berbicara, dan {sfxCount} efek suara dari <code>library/sfx/</code>{" "}
+          dipasang di transisi. Keduanya diterapkan saat render.
         </p>
       </section>
     </div>

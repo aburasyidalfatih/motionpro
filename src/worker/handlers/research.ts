@@ -1,5 +1,5 @@
 import { UnrecoverableError } from "bullmq";
-import { scriptAI } from "@/lib/ai";
+import { aiConcurrency, scriptAI } from "@/lib/ai";
 import type { NumberedSource } from "@/lib/ai/types";
 import { mapLimit } from "@/lib/async";
 import { db } from "@/lib/db";
@@ -18,7 +18,7 @@ export const research: JobHandler = async ({ run, setProgress }) => {
   await setProgress(10);
 
   let done = 0;
-  const notes = await mapLimit(plan.questions, 3, async (question) => {
+  const notes = await mapLimit(plan.questions, aiConcurrency(), async (question) => {
     const note = await ai.research(brief, question);
     done++;
     await setProgress(10 + (done / plan.questions.length) * 70);

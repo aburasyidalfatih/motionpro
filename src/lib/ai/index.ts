@@ -9,3 +9,9 @@ export function scriptAI(): ScriptAI {
   instance ??= process.env.AI_PROVIDER === "fake" ? createFakeAI() : createGeminiAI();
   return instance;
 }
+
+// Jumlah panggilan riset paralel. Akun gratis Gemini punya batas per menit yang
+// kecil, jadi default-nya satu per satu; naikkan bila billing aktif.
+export function aiConcurrency() {
+  return Math.max(1, Number(process.env.GEMINI_CONCURRENCY) || 1);
+}

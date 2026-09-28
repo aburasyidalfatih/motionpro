@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { scriptAI } from "@/lib/ai";
+import { aiConcurrency, scriptAI } from "@/lib/ai";
 import type { NumberedSource, ProjectBrief } from "@/lib/ai/types";
 import { mapLimit } from "@/lib/async";
 import { briefToMarkdown, countWords } from "@/lib/projects";
@@ -24,7 +24,7 @@ async function checkTopic(topic: string, minutes: number) {
   const started = Date.now();
 
   const plan = await ai.planResearch(project);
-  const notes = await mapLimit(plan.questions, 3, (q) => ai.research(project, q));
+  const notes = await mapLimit(plan.questions, aiConcurrency(), (q) => ai.research(project, q));
   const sources: NumberedSource[] = [];
   for (const source of notes.flatMap((n) => n.sources)) {
     if (!sources.some((s) => s.url === source.url)) sources.push({ ...source, position: sources.length + 1 });

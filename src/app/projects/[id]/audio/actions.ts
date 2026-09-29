@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { hasActiveStageJob } from "@/lib/project-jobs";
 import { enqueueJob, type AudioJobInput } from "@/lib/queue";
+import { findSceneOrRefresh } from "@/lib/scenes";
 
 // F-19: voice over untuk adegan yang belum punya ("missing"), semua adegan
 // ("all"), atau adegan yang suara/gayanya berbeda dari pengaturan proyek
@@ -40,7 +41,8 @@ export async function startVoiceSamples() {
 
 // F-21: membuat ulang suara satu adegan.
 export async function revoiceScene(sceneId: string) {
-  const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  const scene = await findSceneOrRefresh(sceneId);
+  if (!scene) return;
   const input: AudioJobInput = { sceneId };
   await enqueueJob("AUDIO", { projectId: scene.projectId, input });
   refresh();

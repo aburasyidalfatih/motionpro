@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { hasActiveStageJob } from "@/lib/project-jobs";
 import { recomputeStatus } from "@/lib/project-status";
+import { findSceneOrRefresh } from "@/lib/scenes";
 import { enqueueJob, type AssetJobInput } from "@/lib/queue";
 
 // F-13: mencari aset untuk adegan yang belum punya kandidat, atau semua adegan (all).
@@ -21,8 +22,15 @@ export async function startAssets(projectId: string, all = false) {
 
 // F-15: memilih kandidat lain. Aset yang belum ada di penyimpanan lokal diunduh worker.
 export async function selectAsset(sceneId: string, assetId: string) {
-  const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
-  const asset = await db.asset.findUniqueOrThrow({ where: { id: assetId } });
+  const scene = await findSceneOrRefresh(sceneId);
+  if (!scene) return;
+  // Kandidat bisa sudah diganti oleh "Cari ulang" sebelum halaman dimuat ulang.
+  const link = await db.sceneAsset.findUnique({
+    where: { sceneId_assetId: { sceneId, assetId } },
+    include: { asset: true },
+  });
+  if (!link) return refresh();
+  const { asset } = link;
   await db.$transaction([
     db.sceneAsset.updateMany({ where: { sceneId }, data: { selected: false } }),
     db.sceneAsset.update({ where: { sceneId_assetId: { sceneId, assetId } }, data: { selected: true } }),
@@ -37,7 +45,8 @@ export async function selectAsset(sceneId: string, assetId: string) {
 
 // F-15: mencari ulang kandidat untuk satu adegan dengan kata kunci baru.
 export async function searchSceneAssets(sceneId: string, formData: FormData) {
-  const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  const scene = await findSceneOrRefresh(sceneId);
+  if (!scene) return;
   const query = String(formData.get("query") ?? "").trim();
   const keywords = query.split(",").map((k) => k.trim()).filter(Boolean);
   // Kata kunci baru disimpan ke adegan agar tetap tampil dan dipakai lagi nanti.

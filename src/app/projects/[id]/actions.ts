@@ -10,6 +10,7 @@ import { deleteVoiceover, hasActiveStageJob as hasActiveJob } from "@/lib/projec
 import { recomputeStatus } from "@/lib/project-status";
 import { asJson, estimateDurationMs, hasReached } from "@/lib/projects";
 import { kineticFallback } from "@/lib/scene-normalize";
+import { findSceneOrRefresh } from "@/lib/scenes";
 import { enqueueJob, type ScriptJobInput } from "@/lib/queue";
 import { startAssets } from "./storyboard/actions";
 import { startAudio } from "./audio/actions";
@@ -90,7 +91,8 @@ export async function saveScene(sceneId: string, formData: FormData) {
   const parsed = sceneForm.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
   const { narration, onScreenText, keywords, visualType, mood } = parsed.data;
-  const before = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  const before = await findSceneOrRefresh(sceneId);
+  if (!before) return;
   let graphic = parseGraphicData(parsed.data.graphicData);
   // Teks kinetik tanpa data memakai teks layar atau awal narasi.
   if (visualType === "kinetic_text") {
@@ -135,7 +137,8 @@ async function orderedSceneIds(projectId: string) {
 }
 
 export async function moveScene(sceneId: string, direction: "up" | "down") {
-  const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  const scene = await findSceneOrRefresh(sceneId);
+  if (!scene) return;
   const ids = await orderedSceneIds(scene.projectId);
   const from = ids.indexOf(sceneId);
   const to = direction === "up" ? from - 1 : from + 1;
@@ -146,7 +149,8 @@ export async function moveScene(sceneId: string, direction: "up" | "down") {
 }
 
 export async function deleteScene(sceneId: string) {
-  const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  const scene = await findSceneOrRefresh(sceneId);
+  if (!scene) return;
   await deleteVoiceover(sceneId);
   await db.scene.delete({ where: { id: sceneId } });
   await renumber(await orderedSceneIds(scene.projectId));
@@ -155,7 +159,8 @@ export async function deleteScene(sceneId: string) {
 }
 
 export async function addSceneAfter(sceneId: string) {
-  const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  const scene = await findSceneOrRefresh(sceneId);
+  if (!scene) return;
   const created = await db.scene.create({
     data: {
       projectId: scene.projectId,
@@ -176,7 +181,8 @@ export async function addSceneAfter(sceneId: string) {
 }
 
 export async function rewriteScene(sceneId: string, formData: FormData) {
-  const scene = await db.scene.findUniqueOrThrow({ where: { id: sceneId } });
+  const scene = await findSceneOrRefresh(sceneId);
+  if (!scene) return;
   if (await hasActiveJob(scene.projectId)) return;
   const input: ScriptJobInput = {
     sceneId,

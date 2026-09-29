@@ -25,6 +25,11 @@ function describeGraphic(g: GraphicData) {
   if (g.comparison)
     parts.push(`Perbandingan: ${g.comparison.left} vs ${g.comparison.right} (${g.comparison.rows.length} aspek)`);
   if (g.quote) parts.push(`Kutipan: “${g.quote.text}” (${g.quote.source})`);
+  if (g.chart)
+    parts.push(
+      `Grafik: ${g.chart.bars.map((b) => `${b.label} ${g.chart!.prefix ?? ""}${b.value}${g.chart!.suffix ?? ""}`).join("; ")}`,
+    );
+  if (g.profile) parts.push(`Profil: ${g.profile.name} · ${g.profile.role}`);
   if (g.timeline) parts.push(`Penanda tahun: ${g.timeline.date} · ${g.timeline.label}`);
   return parts;
 }

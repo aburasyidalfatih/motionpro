@@ -43,6 +43,71 @@ export function TitleOverlay({ title }: { title: string }) {
   );
 }
 
+// Kartu pembuka bab: angka bab besar samar di belakang, label "BAB n", judul
+// bab, dan garis emas yang memanjang. Menandai babak baru cerita.
+export function ChapterOverlay({ number, title }: { number: number; title: string }) {
+  const frame = useCurrentFrame();
+  const labelIn = useEnter(4);
+  const titleIn = useEnter(12);
+  const ruleIn = useEnter(20);
+  return (
+    <AbsoluteFill
+      style={{
+        justifyContent: "center",
+        padding: "0 180px",
+        background: "linear-gradient(90deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 70%, rgba(0,0,0,0.15) 100%)",
+        color: theme.ink,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          right: 120,
+          top: "50%",
+          transform: `translateY(-50%) translateX(${-frame * 0.3}px)`,
+          fontFamily: theme.serif,
+          fontSize: 620,
+          fontWeight: 700,
+          lineHeight: 1,
+          color: theme.goldStrong,
+          opacity: 0.1 * labelIn,
+        }}
+      >
+        {number}
+      </div>
+      <div
+        style={{
+          fontFamily: theme.sans,
+          fontSize: 38,
+          fontWeight: 700,
+          letterSpacing: 12,
+          color: theme.goldStrong,
+          opacity: labelIn,
+          transform: `translateX(${interpolate(labelIn, [0, 1], [-30, 0])}px)`,
+        }}
+      >
+        BAB {number}
+      </div>
+      <h1
+        style={{
+          fontFamily: theme.serif,
+          fontSize: title.length > 30 ? 88 : 108,
+          lineHeight: 1.08,
+          margin: "18px 0 0",
+          maxWidth: 1300,
+          fontWeight: 700,
+          textShadow: theme.shadow,
+          opacity: titleIn,
+          transform: `translateY(${interpolate(titleIn, [0, 1], [30, 0])}px)`,
+        }}
+      >
+        {title}
+      </h1>
+      <div style={{ height: 4, marginTop: 34, width: 420 * ruleIn, backgroundColor: theme.goldStrong }} />
+    </AbsoluteFill>
+  );
+}
+
 // Teks singkat di layar (onScreenText) sebagai label di kiri atas.
 export function LabelOverlay({ text }: { text: string }) {
   const enter = useEnter(8);

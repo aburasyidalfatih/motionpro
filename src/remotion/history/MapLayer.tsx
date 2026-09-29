@@ -2,6 +2,7 @@ import { geoGraticule, geoMercator, geoPath } from "d3-geo";
 import type { Feature, MultiPoint } from "geojson";
 import { useMemo } from "react";
 import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { beatFrames, useSceneSpeech } from "./beats";
 import { MapBase } from "./MapBase";
 import { type Bounds, useMapLayers, visible } from "./mapData";
 import { sideColor, theme } from "./theme";
@@ -15,6 +16,9 @@ const WATER = "#4f7188";
 const SHALLOW = ["#26394a", "#2e4556"];
 const BORDER = "#6b5a3e";
 const PLACE = "#3b2f22";
+
+// Pembesaran kamera di akhir adegan peta (canvas peta dasar digambar 2x agar tetap tajam).
+const CAMERA_ZOOM = 1.18;
 
 // Area peta lebih kecil dari ini (derajat) memakai data resolusi tinggi (10m).
 const DETAIL_SPAN = 3;
@@ -310,44 +314,95 @@ export function MapLayer({ map }: { map: SceneMap }) {
   const shore = box.span > 40 ? 6 : box.span > 10 ? 12 : 20;
   const base = useMemo(() => (layers ? baseSvg(drawn, shore) : null), [layers, drawn, shore]);
 
-  const zoom = interpolate(frame, [0, durationInFrames], [1, 1.07]);
-  const stagger = Math.max(6, Math.min(18, Math.floor((durationInFrames * 0.4) / Math.max(1, map.points.length))));
-  const appear = (i: number) => spring({ frame: frame - 10 - i * stagger, fps, config: { damping: 14 } });
-  const pointsDone = 10 + stagger * map.points.length;
+  // Titik muncul saat narator menyebut namanya; panah menyusul satu per satu.
+  const speech = useSceneSpeech();
+  const pointBeats = beatFrames(
+    speech,
+    map.points.map((p) => [p.cue, p.label]),
+    fps,
+    durationInFrames,
+  );
+  const appear = (i: number) => spring({ frame: frame - pointBeats[i], fps, config: { damping: 14 } });
+  const pointsDone = (pointBeats.at(-1) ?? 10) + 20;
   const baseIn = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
 
   const routeLength = projected.reduce(
     (sum, [x, y], i) => (i === 0 ? 0 : sum + Math.hypot(x - projected[i - 1][0], y - projected[i - 1][1])),
     0,
   );
-  const routeProgress = interpolate(frame, [10, 10 + stagger * Math.max(1, projected.length - 1)], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  const routeProgress =
+    projected.length > 1
+      ? interpolate(frame, [pointBeats[0], pointBeats.at(-1)! + 10], [0, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+        })
+      : 0;
 
-  // Panah bergerak satu per satu, dibagi rata dari setelah titik muncul sampai
-  // menjelang akhir adegan, agar setiap gerak pasukan sempat terbaca.
+  // Panah digambar setelah kedua ujungnya tampil: saat kata penandanya (cue)
+  // diucapkan, atau begitu titik tujuannya disebut; satu per satu.
   const arrows = (map.arrows ?? []).filter((a) => projected[a.from] && projected[a.to] && a.from !== a.to);
-  const arrowsStart = Math.min(pointsDone, durationInFrames * 0.3);
-  const arrowSlot = (durationInFrames * 0.85 - arrowsStart) / Math.max(1, arrows.length);
-  const arrowDraw = Math.max(18, Math.min(45, arrowSlot * 0.8));
-  const arrowProgress = (i: number) => {
-    const start = arrowsStart + i * arrowSlot;
-    return interpolate(frame, [start, start + arrowDraw], [0, 1], {
+  const arrowCues = beatFrames(
+    speech,
+    arrows.map((a) => [a.cue]),
+    fps,
+    durationInFrames,
+    {
+      start: pointsDone,
+      end: Math.max(pointsDone, durationInFrames * 0.85 - 40),
+    },
+  );
+  const arrowDraw = Math.max(18, Math.min(45, (durationInFrames * 0.85 - pointsDone) / Math.max(1, arrows.length)));
+  const arrowBeats: number[] = [];
+  arrows.forEach((a, i) => {
+    const ends = Math.max(pointBeats[a.from], pointBeats[a.to]) + 6;
+    const cued = a.cue ? arrowCues[i] : ends;
+    arrowBeats.push(Math.max(ends, cued, (arrowBeats[i - 1] ?? -Infinity) + 12));
+  });
+  const arrowProgress = (i: number) =>
+    interpolate(frame, [arrowBeats[i], arrowBeats[i] + arrowDraw], [0, 1], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
       easing: Easing.inOut(Easing.cubic),
     });
-  };
   const pulseProgress = (i: number) => {
-    const start = arrowsStart + i * arrowSlot + arrowDraw;
+    const start = arrowBeats[i] + arrowDraw;
     return interpolate(frame, [start, start + 24], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   };
+
+  // Kamera: perlahan memperbesar dan bergeser ke titik atau tujuan panah yang
+  // sedang dibahas, seperti kamera yang mengikuti jalannya pertempuran.
+  const focusEvents = [
+    ...pointBeats.map((at, i) => ({ at, point: projected[i] })),
+    ...arrows.map((a, i) => ({ at: arrowBeats[i] + arrowDraw / 2, point: projected[a.to] })),
+  ].sort((a, b) => a.at - b.at);
+  const center: Point = [
+    projected.reduce((sum, p) => sum + p[0], 0) / projected.length,
+    projected.reduce((sum, p) => sum + p[1], 0) / projected.length,
+  ];
+  let focus = center;
+  for (const event of focusEvents) {
+    const t = interpolate(frame, [event.at, event.at + 30], [0, 1], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.inOut(Easing.cubic),
+    });
+    if (t <= 0) break;
+    const target: Point = [center[0] * 0.4 + event.point[0] * 0.6, center[1] * 0.4 + event.point[1] * 0.6];
+    focus = [focus[0] + (target[0] - focus[0]) * t, focus[1] + (target[1] - focus[1]) * t];
+  }
+  const scale = interpolate(frame, [0, durationInFrames], [1, CAMERA_ZOOM], {
+    easing: Easing.inOut(Easing.quad),
+  });
+  // Geser sejauh pembesaran mengizinkan, agar tepi peta tidak pernah terlihat.
+  const clampPan = (value: number, size: number) =>
+    Math.max((-(scale - 1) * size) / 2, Math.min(((scale - 1) * size) / 2, value));
+  const panX = clampPan(-scale * (focus[0] - WIDTH / 2), WIDTH);
+  const panY = clampPan(-scale * (focus[1] - HEIGHT / 2), HEIGHT);
 
   const captionIn = spring({ frame: frame - 4, fps, config: { damping: 200 } });
   const sides = map.sides ?? [];
 
-  const zoomStyle = { transform: `scale(${zoom})`, transformOrigin: "50% 50%" };
+  const zoomStyle = { transform: `translate(${panX}px, ${panY}px) scale(${scale})`, transformOrigin: "50% 50%" };
 
   return (
     <AbsoluteFill style={{ backgroundColor: theme.sea }}>
@@ -383,7 +438,8 @@ export function MapLayer({ map }: { map: SceneMap }) {
           {(map.zones ?? []).map((zone, i) => {
             const center = projected[zone.point];
             if (!center || !zoneRadius[i]) return null;
-            const grow = spring({ frame: frame - 4 - i * 6, fps, config: { damping: 200 } });
+            // Zona tumbuh bersama titik pusatnya.
+            const grow = spring({ frame: frame - (pointBeats[zone.point] ?? 4), fps, config: { damping: 200 } });
             return (
               <circle
                 key={`zone-${i}`}

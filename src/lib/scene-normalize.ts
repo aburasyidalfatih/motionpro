@@ -9,6 +9,8 @@ const REQUIRED: Partial<Record<VisualType, keyof GraphicData>> = {
   stat: "stats",
   comparison: "comparison",
   quote: "quote",
+  chart: "chart",
+  profile: "profile",
 };
 
 // Baris teks kinetik dari teks layar atau awal narasi (maksimal 6 kata per baris).

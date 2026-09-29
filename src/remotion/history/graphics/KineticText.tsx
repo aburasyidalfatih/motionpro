@@ -1,16 +1,17 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { useBeats } from "../beats";
 import { theme } from "../theme";
 
 const normalize = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
-// Teks kinetik: kata muncul satu per satu, kata penting disorot emas dengan
-// garis bawah yang tumbuh.
+// Teks kinetik: tiap baris muncul saat narator mengucapkannya, kata demi kata;
+// kata penting disorot emas dengan garis bawah yang tumbuh.
 export function KineticText({ lines, emphasis }: { lines: string[]; emphasis: string[] }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const emphasized = new Set(emphasis.flatMap((e) => e.split(/\s+/)).map(normalize));
-  const perWord = 4;
-  let index = 0;
+  const beats = useBeats(lines.map((line) => [line]));
+  const perWord = 3;
 
   return (
     <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: "0 160px" }}>
@@ -31,7 +32,7 @@ export function KineticText({ lines, emphasis }: { lines: string[]; emphasis: st
           }}
         >
           {line.split(/\s+/).map((word, wi) => {
-            const delay = 6 + index++ * perWord;
+            const delay = beats[li] + wi * perWord;
             const enter = spring({ frame: frame - delay, fps, config: { damping: 16, mass: 0.6 } });
             const strong = emphasized.has(normalize(word));
             const underline = spring({ frame: frame - delay - 8, fps, config: { damping: 200 } });

@@ -1,4 +1,5 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { statCues, useBeats } from "../beats";
 import { theme } from "../theme";
 import type { Stat } from "../types";
 
@@ -13,17 +14,20 @@ const format = (value: number, decimals: number, grouping: boolean) =>
     useGrouping: grouping,
   });
 
-// Statistik: 1–3 angka besar yang menghitung naik, dengan keterangan di bawahnya.
+// Statistik: 1–3 angka besar yang menghitung naik saat narator menyebutnya,
+// dengan keterangan di bawahnya. Angka terakhir yang muncul disorot.
 export function StatScene({ stats }: { stats: Stat[] }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const beats = useBeats(statCues(stats));
+  const current = beats.filter((b) => frame >= b).length - 1;
 
   return (
     <AbsoluteFill
       style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 120, padding: "0 120px" }}
     >
       {stats.map((stat, i) => {
-        const delay = 8 + i * 14;
+        const delay = beats[i];
         const enter = spring({ frame: frame - delay, fps, config: { damping: 200 } });
         const count = interpolate(frame, [delay, delay + 45], [0, 1], {
           extrapolateLeft: "clamp",
@@ -31,6 +35,8 @@ export function StatScene({ stats }: { stats: Stat[] }) {
         });
         const eased = 1 - Math.pow(1 - count, 3);
         const decimals = Number.isInteger(stat.value) ? 0 : 1;
+        // Angka yang sudah lewat sedikit meredup agar perhatian pindah ke angka baru.
+        const focus = stats.length > 1 && i < current ? 0.55 : 1;
         return (
           <div
             key={i}
@@ -39,8 +45,8 @@ export function StatScene({ stats }: { stats: Stat[] }) {
               maxWidth: 560,
               textAlign: "center",
               fontFamily: theme.sans,
-              opacity: enter,
-              transform: `translateY(${interpolate(enter, [0, 1], [40, 0])}px)`,
+              opacity: enter * focus,
+              transform: `translateY(${interpolate(enter, [0, 1], [40, 0])}px) scale(${interpolate(enter, [0, 1], [0.85, 1])})`,
             }}
           >
             <div

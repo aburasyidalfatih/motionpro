@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { aiConcurrency, scriptAI } from "@/lib/ai";
-import type { NumberedSource, ProjectBrief } from "@/lib/ai/types";
-import { mapLimit } from "@/lib/async";
+import { scriptAI } from "@/lib/ai";
+import { runResearch } from "@/lib/ai/research-pipeline";
+import { writeFullScript } from "@/lib/ai/script-pipeline";
+import type { ProjectBrief } from "@/lib/ai/types";
 import { briefToMarkdown, countWords } from "@/lib/projects";
 import { normalizeScene } from "@/lib/scene-normalize";
 
@@ -24,14 +25,8 @@ async function checkTopic(topic: string, minutes: number) {
   const project: ProjectBrief = { topic, style: "GRAPHIC", language: "id", tone: "dokumenter", targetMinutes: minutes };
   const started = Date.now();
 
-  const plan = await ai.planResearch(project);
-  const notes = await mapLimit(plan.questions, aiConcurrency(), (q) => ai.research(project, q));
-  const sources: NumberedSource[] = [];
-  for (const source of notes.flatMap((n) => n.sources)) {
-    if (!sources.some((s) => s.url === source.url)) sources.push({ ...source, position: sources.length + 1 });
-  }
-  const brief = await ai.synthesizeBrief(project, notes, sources);
-  const script = await ai.writeScript(project, briefToMarkdown(brief));
+  const { questions, sources, brief } = await runResearch(ai, project);
+  const script = await writeFullScript(ai, project, briefToMarkdown(brief));
 
   const scenes = script.scenes.map((s) => normalizeScene(s, project.style));
   const words = scenes.reduce((sum, s) => sum + countWords(s.narration), 0);
@@ -40,9 +35,12 @@ async function checkTopic(topic: string, minutes: number) {
   return {
     topic,
     seconds: Math.round((Date.now() - started) / 1000),
-    questions: plan.questions.length,
+    questions: questions.length,
     sources: sources.length,
     facts: brief.facts.length,
+    quotes: brief.quotes.length,
+    chapters: script.outline.chapters.length,
+    fixes: script.issues.length,
     scenes: scenes.length,
     types,
     words,
@@ -63,7 +61,8 @@ async function main() {
       const r = await checkTopic(topic, minutes);
       console.log(
         `LULUS  ${r.topic} (${r.seconds} dtk): ${r.questions} pertanyaan, ${r.sources} sumber, ${r.facts} fakta, ` +
-          `${r.scenes} adegan, ${r.words}/${r.targetWords} kata, ${r.maps} peta, tipe: ${r.types}` +
+          `${r.quotes} kutipan, ${r.chapters} bab, ${r.scenes} adegan (${r.fixes} perbaikan editor), ` +
+          `${r.words}/${r.targetWords} kata, ${r.maps} peta, tipe: ${r.types}` +
           (r.mapsWithoutData ? ` (${r.mapsWithoutData} tanpa koordinat)` : ""),
       );
     } catch (err) {

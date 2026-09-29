@@ -24,12 +24,14 @@ export const jobKindLabel: Record<JobKind, string> = {
 };
 
 export const visualTypeLabel: Record<string, string> = {
-  title: "Kartu judul",
+  title: "Kartu judul / bab",
   kinetic_text: "Teks kinetik",
   map: "Peta",
   timeline: "Timeline",
   stat: "Statistik",
+  chart: "Grafik batang",
   comparison: "Perbandingan",
+  profile: "Profil tokoh",
   quote: "Kutipan",
   painting: "Lukisan",
   archival_photo: "Foto arsip",

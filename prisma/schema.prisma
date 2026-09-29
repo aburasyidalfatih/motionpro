@@ -85,25 +85,27 @@ enum Privacy {
 }
 
 model Project {
-  id            String        @id @default(cuid())
-  topic         String
-  targetMinutes Int           @default(10)
-  language      String        @default("id")
-  tone          String        @default("dokumenter")
-  templateId    String        @default("sejarah-peta")
-  style         VideoStyle    @default(GRAPHIC)
+  id              String        @id @default(cuid())
+  topic           String
+  targetMinutes   Int           @default(10)
+  language        String        @default("id")
+  tone            String        @default("dokumenter")
+  templateId      String        @default("sejarah-peta")
+  style           VideoStyle    @default(GRAPHIC)
   // Suara Gemini TTS dan instruksi gaya bicara narator.
-  voiceId       String?
-  voiceStyle    String?
+  voiceId         String?
+  voiceStyle      String?
   // Path musik latar relatif terhadap folder library/music.
-  musicTrack    String?
-  aspectRatio   AspectRatio   @default(LANDSCAPE_16_9)
-  mode          ProjectMode   @default(EDITOR)
-  status        ProjectStatus @default(DRAFT)
+  musicTrack      String?
+  // Musik berganti mengikuti suasana tiap bab (lihat musicPlan di src/lib/library.ts).
+  musicPerChapter Boolean       @default(true)
+  aspectRatio     AspectRatio   @default(LANDSCAPE_16_9)
+  mode            ProjectMode   @default(EDITOR)
+  status          ProjectStatus @default(DRAFT)
   // Tahap terakhir yang gagal, diisi bersama status FAILED.
-  failedStage   JobKind?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  failedStage     JobKind?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   research ResearchBrief?
   scenes   Scene[]

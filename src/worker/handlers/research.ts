@@ -1,50 +1,24 @@
 import { UnrecoverableError } from "bullmq";
-import { aiConcurrency, scriptAI } from "@/lib/ai";
-import type { NumberedSource } from "@/lib/ai/types";
-import { mapLimit } from "@/lib/async";
+import { scriptAI } from "@/lib/ai";
+import { runResearch } from "@/lib/ai/research-pipeline";
 import { db } from "@/lib/db";
 import { asJson, briefToMarkdown, toProjectBrief } from "@/lib/projects";
 import type { JobHandler } from "../types";
 
-// Riset (F-04, F-05, F-07, F-08): rencana pertanyaan → riset tiap pertanyaan
-// dengan Google Search → brief bersumber yang bisa diedit pengguna.
+// Riset (F-04, F-05, F-07, F-08): dua putaran riset dengan Google Search
+// (lib/ai/research-pipeline.ts) → brief bersumber yang bisa diedit pengguna.
 export const research: JobHandler = async ({ run, setProgress }) => {
   if (!run.projectId) throw new UnrecoverableError("Job riset tanpa proyek");
   const project = await db.project.findUniqueOrThrow({ where: { id: run.projectId } });
-  const brief = toProjectBrief(project);
-  const ai = scriptAI();
-
-  const plan = await ai.planResearch(brief);
-  await setProgress(10);
-
-  let done = 0;
-  const notes = await mapLimit(plan.questions, aiConcurrency(), async (question) => {
-    const note = await ai.research(brief, question);
-    done++;
-    await setProgress(10 + (done / plan.questions.length) * 70);
-    return note;
-  });
-
-  // Sumber dari semua catatan diberi nomor [1], [2], ... tanpa duplikat.
-  const sources: NumberedSource[] = [];
-  for (const note of notes) {
-    for (const source of note.sources) {
-      if (!sources.some((s) => s.url === source.url)) {
-        sources.push({ ...source, position: sources.length + 1 });
-      }
-    }
-  }
-
-  const result = await ai.synthesizeBrief(brief, notes, sources);
-  // Buang nomor sumber yang tidak ada di daftar.
-  for (const fact of result.facts) {
-    fact.sources = fact.sources.filter((n) => n >= 1 && n <= sources.length);
-  }
-  await setProgress(95);
-
+  const {
+    questions,
+    notes,
+    sources,
+    brief: result,
+  } = await runResearch(scriptAI(), toProjectBrief(project), (fraction) => setProgress(fraction * 100));
   const suggestions = [...new Set(notes.map((n) => n.suggestionHtml).filter(Boolean))];
   const data = {
-    questions: asJson(plan.questions),
+    questions: asJson(questions),
     facts: asJson(result.facts),
     timeline: asJson(result.timeline),
     hooks: asJson(result.hooks),
@@ -68,5 +42,5 @@ export const research: JobHandler = async ({ run, setProgress }) => {
     });
   });
 
-  return { questions: plan.questions.length, sources: sources.length, facts: result.facts.length };
+  return { questions: questions.length, sources: sources.length, facts: result.facts.length };
 };

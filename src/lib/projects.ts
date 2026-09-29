@@ -62,6 +62,11 @@ export function briefToMarkdown(brief: Brief) {
   if (brief.timeline.length) {
     sections.push(`## Timeline\n\n${brief.timeline.map((t) => `- **${t.date}**: ${t.event}`).join("\n")}`);
   }
+  if (brief.quotes.length) {
+    sections.push(
+      `## Kutipan asli\n\n${brief.quotes.map((q) => `- “${q.text}” — ${q.speaker}${cite(q.sources)}`).join("\n")}`,
+    );
+  }
   sections.push(`## Calon hook\n\n${brief.hooks.map((h) => `- ${h}`).join("\n")}`);
   if (brief.angles.length) {
     sections.push(`## Sudut cerita\n\n${brief.angles.map((a) => `- ${a}`).join("\n")}`);

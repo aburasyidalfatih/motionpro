@@ -60,8 +60,8 @@ function StoryboardBody({ project }: { project: ProjectData }) {
 
   const graphicNote = graphicCount > 0 && (
     <p className="rounded-md border border-zinc-200 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-      {graphicCount} adegan grafis (peta, teks kinetik, timeline, statistik, perbandingan, kutipan) digambar otomatis
-      oleh template dan tidak butuh aset. Lihat hasilnya di tab{" "}
+      {graphicCount} adegan grafis (peta, teks kinetik, timeline, statistik, grafik, perbandingan, profil tokoh,
+      kutipan, kartu bab) digambar otomatis oleh template dan tidak butuh aset. Lihat hasilnya di tab{" "}
       <Link href={`/projects/${project.id}/render`} className="underline">
         Render
       </Link>

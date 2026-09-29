@@ -1,4 +1,5 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { eventCues, useBeats } from "../beats";
 import { theme } from "../theme";
 import type { TimelineMark } from "../types";
 
@@ -6,31 +7,32 @@ const LEFT = 180;
 const RIGHT = 1740;
 const AXIS_Y = 560;
 
-// Timeline: garis waktu tergambar dari kiri, peristiwa muncul bergantian
-// (tanggal di atas, keterangan di bawah), peristiwa terakhir disorot.
+// Timeline: peristiwa muncul saat narator menyebut tanggalnya (tanggal di atas,
+// keterangan di bawah); garis waktu tumbuh sampai peristiwa itu dan peristiwa
+// yang sedang dibahas disorot.
 export function TimelineScene({ events }: { events: TimelineMark[] }) {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
-  const axis = interpolate(frame, [0, 25], [0, 1], { extrapolateRight: "clamp" });
-  const step = Math.max(8, Math.min(30, Math.floor((durationInFrames * 0.6) / events.length)));
+  const { fps } = useVideoConfig();
+  const beats = useBeats(eventCues(events));
   const x = (i: number) =>
     events.length === 1 ? (LEFT + RIGHT) / 2 : LEFT + ((RIGHT - LEFT) * i) / (events.length - 1);
+  // Ujung garis bergerak dari peristiwa ke peristiwa, lalu sampai tepi kanan.
+  const reach = interpolate(
+    frame,
+    [0, ...beats.map((b) => b + 12), beats.at(-1)! + 40],
+    [LEFT - 60, ...events.map((_, i) => x(i)), RIGHT + 60],
+    { extrapolateRight: "clamp", easing: (t) => 1 - Math.pow(1 - t, 3) },
+  );
+  const current = Math.max(0, beats.filter((b) => frame >= b).length - 1);
 
   return (
     <AbsoluteFill>
       <svg width="1920" height="1080" viewBox="0 0 1920 1080" style={{ position: "absolute" }}>
-        <line
-          x1={LEFT - 60}
-          y1={AXIS_Y}
-          x2={LEFT - 60 + (RIGHT - LEFT + 120) * axis}
-          y2={AXIS_Y}
-          stroke={theme.muted}
-          strokeWidth={4}
-        />
+        <line x1={LEFT - 60} y1={AXIS_Y} x2={reach} y2={AXIS_Y} stroke={theme.muted} strokeWidth={4} />
       </svg>
       {events.map((event, i) => {
-        const enter = spring({ frame: frame - 18 - i * step, fps, config: { damping: 18 } });
-        const last = i === events.length - 1;
+        const enter = spring({ frame: frame - beats[i], fps, config: { damping: 18 } });
+        const last = i === current;
         const color = last ? theme.goldStrong : theme.ink;
         const up = i % 2 === 0;
         return (

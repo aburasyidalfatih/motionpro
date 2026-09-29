@@ -1,9 +1,9 @@
 import type { HistoryVideoProps, WordTiming } from "./types";
 
 export const FPS = 30;
-// Lama crossfade antaradegan; visual adegan berikutnya mulai sedikit lebih awal
+// Lama transisi antaradegan; visual adegan berikutnya mulai sedikit lebih awal
 // sehingga narasi tidak ikut bergeser.
-export const CROSSFADE_FRAMES = 12;
+export const CROSSFADE_FRAMES = 14;
 // Jeda di akhir video untuk fade ke hitam dan musik mereda.
 export const END_HOLD_FRAMES = 45;
 
@@ -56,4 +56,25 @@ export function subtitleLines(words: WordTiming[], maxWords = 6): SubtitleLine[]
   }
   flush();
   return lines;
+}
+
+// Jenis transisi masuk adegan. Bervariasi menurut isi adegan agar 60+ potongan
+// dalam satu video tidak terasa sama: peta masuk dengan zoom, angka dan grafik
+// dengan sapuan, kartu judul dengan fade, sisanya bergantian geser dan fade.
+export type TransitionKind = "fade" | "slide" | "zoom" | "wipe";
+
+export function transitionFor(scenes: Pick<HistoryVideoProps, "scenes">["scenes"], index: number): TransitionKind {
+  const type = scenes[index].visualType;
+  if (type === "title") return "fade";
+  if (type === "map") return scenes[index - 1]?.visualType === "map" ? "fade" : "zoom";
+  if (["stat", "chart", "comparison"].includes(type)) return "wipe";
+  if (scenes[index - 1]?.visualType === type) return "fade";
+  return index % 2 === 0 ? "slide" : "fade";
+}
+
+// Adegan bertipe "title" pertama adalah judul video; berikutnya pembuka bab
+// (bab 1, 2, ...). Mengembalikan nomor bab tiap adegan judul, 0 untuk judul video.
+export function chapterNumbers(scenes: Pick<HistoryVideoProps, "scenes">["scenes"]) {
+  let count = -1;
+  return scenes.map((scene) => (scene.visualType === "title" ? ++count : null));
 }

@@ -3,19 +3,25 @@ import type { z } from "zod";
 import { fatalError, geminiClient, type GeminiRequest } from "./client";
 import {
   briefPrompt,
+  chapterPrompt,
+  followUpPrompt,
+  outlinePrompt,
   planPrompt,
   rankAssetsPrompt,
   researchPrompt,
+  reviewPrompt,
   rewritePrompt,
-  scriptPrompt,
   SYSTEM_PROMPT,
 } from "./prompts";
 import {
   assetRankingSchema,
   briefSchema,
+  chapterReviewSchema,
+  chapterScenesSchema,
+  followUpSchema,
+  outlineSchema,
   researchPlanSchema,
   sceneSchema,
-  scriptSchema,
   toGeminiSchema,
 } from "./schemas";
 import type { ResearchNote, ScriptAI, SourceRef } from "./types";
@@ -24,10 +30,12 @@ const DEFAULT_MODEL = "gemini-3.8-flash";
 
 export function createGeminiAI(): ScriptAI {
   const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  // Naskah (kerangka, bab, pemeriksaan) boleh memakai model yang lebih kuat.
+  const scriptModel = process.env.GEMINI_SCRIPT_MODEL || model;
   const { generate: generateWith } = geminiClient();
-  const generate = (request: GeminiRequest) => generateWith(model, request);
 
-  async function generateJson<T>(schema: z.ZodType<T>, prompt: string): Promise<T> {
+  async function generateJson<T>(schema: z.ZodType<T>, prompt: string, useModel = model): Promise<T> {
+    const generate = (request: GeminiRequest) => generateWith(useModel, request);
     const jsonSchema = toGeminiSchema(schema);
     let response;
     try {
@@ -40,7 +48,7 @@ export function createGeminiAI(): ScriptAI {
         },
       });
     } catch (err) {
-      if (!(err instanceof ApiError && err.status === 400)) throw fatalError(err, model);
+      if (!(err instanceof ApiError && err.status === 400)) throw fatalError(err, useModel);
       // Skema ditolak (terlalu kompleks untuk model ini): minta JSON biasa dengan
       // skema di dalam prompt, lalu validasi jawabannya dengan zod.
       console.warn("[gemini] skema ditolak (400), mencoba mode JSON tanpa skema");
@@ -48,7 +56,7 @@ export function createGeminiAI(): ScriptAI {
         contents: `${prompt}\n\nJawab HANYA dengan JSON yang sesuai JSON Schema berikut:\n${JSON.stringify(jsonSchema)}`,
         config: { systemInstruction: SYSTEM_PROMPT, responseMimeType: "application/json" },
       }).catch((retryErr) => {
-        throw fatalError(retryErr, model);
+        throw fatalError(retryErr, useModel);
       });
     }
     const text = response.text;
@@ -61,7 +69,7 @@ export function createGeminiAI(): ScriptAI {
     planResearch: (project) => generateJson(researchPlanSchema, planPrompt(project)),
 
     async research(project, question): Promise<ResearchNote> {
-      const response = await generate({
+      const response = await generateWith(model, {
         contents: researchPrompt(project, question),
         config: {
           systemInstruction: SYSTEM_PROMPT,
@@ -86,13 +94,19 @@ export function createGeminiAI(): ScriptAI {
       };
     },
 
+    followUpResearch: (project, notes) => generateJson(followUpSchema, followUpPrompt(project, notes)),
+
     synthesizeBrief: (project, notes, sources) =>
       generateJson(briefSchema, briefPrompt(project, notes, sources)),
 
-    writeScript: (project, briefMarkdown) =>
-      generateJson(scriptSchema, scriptPrompt(project, briefMarkdown)),
+    outlineScript: (project, briefMarkdown) =>
+      generateJson(outlineSchema, outlinePrompt(project, briefMarkdown), scriptModel),
 
-    rewriteScene: (input) => generateJson(sceneSchema, rewritePrompt(input)),
+    writeChapter: (input) => generateJson(chapterScenesSchema, chapterPrompt(input), scriptModel),
+
+    reviewChapter: (input) => generateJson(chapterReviewSchema, reviewPrompt(input), scriptModel),
+
+    rewriteScene: (input) => generateJson(sceneSchema, rewritePrompt(input), scriptModel),
 
     rankAssets: (project, scenes) => generateJson(assetRankingSchema, rankAssetsPrompt(project, scenes)),
   };

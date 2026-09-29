@@ -256,6 +256,10 @@ function AudioBody({
             <SubmitButton variant="secondary" pendingText="Menyimpan...">
               Simpan
             </SubmitButton>
+            <label className="flex w-full items-center gap-2 text-sm">
+              <input type="checkbox" name="musicPerChapter" defaultChecked={project.musicPerChapter} />
+              Ganti musik tiap bab sesuai suasananya (musik di atas untuk pembuka)
+            </label>
           </form>
         )}
         {currentTrack && (
@@ -263,7 +267,7 @@ function AudioBody({
         )}
         <p className="text-xs text-zinc-500">
           Musik otomatis mengecil saat narasi berbicara, dan {sfxCount} efek suara dari <code>library/sfx/</code>{" "}
-          dipasang di transisi. Keduanya diterapkan saat render.
+          dipasang di transisi, kartu bab, peta, dan saat angka muncul. Keduanya diterapkan saat render.
         </p>
       </section>
     </div>

@@ -51,6 +51,7 @@ export async function revoiceScene(sceneId: string) {
 // F-22: musik latar dari library.
 export async function saveMusic(projectId: string, formData: FormData) {
   const musicTrack = String(formData.get("musicTrack") ?? "") || null;
-  await db.project.update({ where: { id: projectId }, data: { musicTrack } });
+  const musicPerChapter = formData.get("musicPerChapter") === "on";
+  await db.project.update({ where: { id: projectId }, data: { musicTrack, musicPerChapter } });
   refresh();
 }

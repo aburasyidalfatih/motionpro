@@ -1,19 +1,37 @@
-import { AbsoluteFill, Html5Audio, interpolate, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Easing, Html5Audio, interpolate, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
+import { beatFrames, popCues, SceneSpeechContext } from "./beats";
 import { Backdrop, Heading } from "./graphics/Backdrop";
+import { ChartScene } from "./graphics/ChartScene";
 import { ComparisonScene } from "./graphics/ComparisonScene";
 import { KineticText } from "./graphics/KineticText";
+import { ProfileScene } from "./graphics/ProfileScene";
 import { QuoteScene } from "./graphics/QuoteScene";
 import { StatScene } from "./graphics/StatScene";
 import { TimelineScene } from "./graphics/TimelineScene";
 import { MapLayer } from "./MapLayer";
-import { LabelOverlay, Subtitles, TimelineBadge, TitleOverlay } from "./overlays";
-import { CROSSFADE_FRAMES, END_HOLD_FRAMES, sceneTimings, speechRanges } from "./timing";
+import { ChapterOverlay, LabelOverlay, Subtitles, TimelineBadge, TitleOverlay } from "./overlays";
+import { theme } from "./theme";
+import {
+  chapterNumbers,
+  CROSSFADE_FRAMES,
+  END_HOLD_FRAMES,
+  FPS,
+  sceneTimings,
+  speechRanges,
+  transitionFor,
+  type TransitionKind,
+} from "./timing";
 import type { HistoryVideoProps, SceneProps } from "./types";
 import { FallbackLayer, FootageLayer, ImageLayer, Vignette } from "./visuals";
 
 const MUSIC_VOLUME = 0.22;
 const MUSIC_DUCKED = 0.07;
 const DUCK_FADE_FRAMES = 10;
+// Pergantian musik antarbab: trek lama mengecil sementara trek baru membesar.
+const MUSIC_CROSSFADE_FRAMES = 2 * FPS;
+
+// Efek suara dipilih bergantian dari beberapa file sejenis agar tidak berulang persis.
+const pick = (files: string[], i: number) => (files.length ? files[i % files.length] : null);
 
 type Graphic = { layer: React.ReactNode; heading: boolean };
 
@@ -33,8 +51,27 @@ function graphicFor(scene: SceneProps): Graphic | null {
       return g.comparison ? { layer: <ComparisonScene comparison={g.comparison} />, heading: false } : null;
     case "quote":
       return g.quote ? { layer: <QuoteScene {...g.quote} />, heading: false } : null;
+    case "chart":
+      return g.chart?.bars.length ? { layer: <ChartScene chart={g.chart} />, heading: true } : null;
+    case "profile":
+      return g.profile ? { layer: <ProfileScene profile={g.profile} />, heading: false } : null;
     default:
       return null;
+  }
+}
+
+// Gaya transisi masuk adegan pada progres p (0 → 1).
+function transitionStyle(kind: TransitionKind | null, p: number): React.CSSProperties {
+  if (kind === null || p >= 1) return {};
+  switch (kind) {
+    case "slide":
+      return { transform: `translateX(${(1 - p) * 100}%)` };
+    case "zoom":
+      return { opacity: p, transform: `scale(${1.25 - 0.25 * p})` };
+    case "wipe":
+      return { clipPath: `inset(0 ${(1 - p) * 100}% 0 0)` };
+    default:
+      return { opacity: p };
   }
 }
 
@@ -42,19 +79,27 @@ function SceneVisual({
   scene,
   index,
   title,
-  fadeIn,
+  chapter,
+  transition,
   graphicStyle,
 }: {
   scene: SceneProps;
   index: number;
   title: string;
-  fadeIn: boolean;
+  chapter: number | null;
+  transition: TransitionKind | null;
   graphicStyle: boolean;
 }) {
   const frame = useCurrentFrame();
-  const opacity = fadeIn ? interpolate(frame, [0, CROSSFADE_FRAMES], [0, 1], { extrapolateRight: "clamp" }) : 1;
+  const { durationInFrames } = useVideoConfig();
+  const p = interpolate(frame, [0, CROSSFADE_FRAMES], [0, 1], {
+    extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.cubic),
+  });
   const graphic = graphicFor(scene);
   const headingIn = interpolate(frame, [4, 16], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Grafik terus mendekat perlahan sepanjang adegan agar layar tidak pernah diam.
+  const drift = interpolate(frame, [0, durationInFrames], [1, 1.045]);
 
   // Peta menggambar latarnya sendiri; tipe grafis lain di atas latar navy.
   let background;
@@ -64,19 +109,43 @@ function SceneVisual({
   else background = graphicStyle ? <Backdrop /> : <FallbackLayer />;
   const photographic = !graphic && Boolean(scene.asset);
 
+  let overlay = null;
+  if (scene.visualType === "title") {
+    overlay = chapter ? (
+      <ChapterOverlay number={chapter} title={scene.onScreenText || title} />
+    ) : (
+      <TitleOverlay title={scene.onScreenText || title} />
+    );
+  } else if (!graphic && scene.onScreenText) {
+    overlay = <LabelOverlay text={scene.onScreenText} />;
+  }
+
   return (
-    <AbsoluteFill style={{ opacity }}>
+    <AbsoluteFill style={{ overflow: "hidden", ...transitionStyle(transition, p) }}>
       {background}
       {photographic && <Vignette />}
-      {graphic?.layer}
-      {graphic?.heading && scene.onScreenText && <Heading text={scene.onScreenText} opacity={headingIn} />}
-      {scene.visualType === "title" ? (
-        <TitleOverlay title={scene.onScreenText || title} />
-      ) : (
-        !graphic && scene.onScreenText && <LabelOverlay text={scene.onScreenText} />
+      {graphic && (
+        <AbsoluteFill style={scene.visualType === "map" ? undefined : { transform: `scale(${drift})` }}>
+          {graphic.layer}
+        </AbsoluteFill>
       )}
+      {graphic?.heading && scene.onScreenText && <Heading text={scene.onScreenText} opacity={headingIn} />}
+      {overlay}
       {scene.graphic.timeline && scene.visualType !== "timeline" && (
         <TimelineBadge date={scene.graphic.timeline.date} label={scene.graphic.timeline.label} />
+      )}
+      {transition === "wipe" && p < 1 && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: `calc(${p * 100}% - 6px)`,
+            width: 6,
+            background: theme.goldStrong,
+            boxShadow: `0 0 24px ${theme.goldStrong}`,
+          }}
+        />
       )}
     </AbsoluteFill>
   );
@@ -108,17 +177,48 @@ function useMusicVolume(props: HistoryVideoProps) {
 }
 
 // Template video sejarah militer dan geopolitik (F-25): adegan grafis (teks
-// kinetik, peta pertempuran, timeline, statistik, perbandingan, kutipan) dan,
-// pada gaya arsip, lukisan dengan ken-burns dan footage; ditambah penanda tahun,
-// subtitle karaoke, crossfade, musik dengan ducking, dan SFX.
+// kinetik, peta pertempuran, timeline, statistik, grafik, perbandingan, profil
+// tokoh, kutipan) dan, pada gaya arsip, lukisan dengan ken-burns dan footage.
+// Elemen grafis muncul mengikuti narasi (beats.ts), transisi bervariasi per
+// jenis adegan, kartu bab, subtitle karaoke, musik per bab dengan ducking, dan
+// efek suara pada transisi dan beat.
 export function HistoryVideo(props: HistoryVideoProps) {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const timings = sceneTimings(props);
+  const chapters = chapterNumbers(props.scenes);
   const musicVolume = useMusicVolume(props);
   const endFade = interpolate(frame, [durationInFrames - END_HOLD_FRAMES, durationInFrames], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+  });
+
+  // Efek suara: whoosh pada transisi geser, zoom, dan sapuan; impact pada
+  // kartu judul dan bab; kertas saat peta dibuka; pop saat angka atau peristiwa muncul.
+  const sfx: { key: string; from: number; src: string; volume: number }[] = [];
+  props.scenes.forEach((scene, i) => {
+    const { start, frames } = timings[i];
+    const lead = i === 0 ? 0 : CROSSFADE_FRAMES;
+    const tail = i === props.scenes.length - 1 ? END_HOLD_FRAMES : 0;
+    const add = (kind: string, src: string | null, from: number, volume: number) => {
+      if (src) sfx.push({ key: `${kind}-${scene.id}-${sfx.length}`, from: Math.max(0, Math.round(from)), src, volume });
+    };
+    const transition = i === 0 ? null : transitionFor(props.scenes, i);
+    if (scene.visualType === "title") add("impact", pick(props.sfx.impact, i), start - lead, 0.5);
+    else if (transition && transition !== "fade") add("whoosh", pick(props.sfx.whoosh, i), start - lead, 0.35);
+    if (scene.visualType === "map") add("paper", pick(props.sfx.paper, i), start - lead + 4, 0.4);
+    const beats = beatFrames({ words: scene.words, offset: lead }, popCues(scene), FPS, frames + lead + tail);
+    beats.forEach((beat, b) => add("pop", pick(props.sfx.pop, i + b), start - lead + beat, 0.3));
+  });
+
+  // Musik per bab: tiap bagian bersilang-fade dengan bagian berikutnya.
+  const music = props.music.map((part, k) => {
+    const next = props.music[k + 1];
+    const from = k === 0 ? 0 : Math.max(0, (timings[part.fromScene]?.start ?? 0) - MUSIC_CROSSFADE_FRAMES / 2);
+    const to = next
+      ? (timings[next.fromScene]?.start ?? durationInFrames) + MUSIC_CROSSFADE_FRAMES / 2
+      : durationInFrames;
+    return { ...part, from, frames: Math.max(1, to - from), fadeIn: k > 0, fadeOut: Boolean(next) };
   });
 
   return (
@@ -135,13 +235,16 @@ export function HistoryVideo(props: HistoryVideoProps) {
               durationInFrames={frames + lead + tail}
               name={`Adegan ${i + 1}`}
             >
-              <SceneVisual
-                scene={scene}
-                index={i}
-                title={props.title}
-                fadeIn={i > 0}
-                graphicStyle={props.style === "GRAPHIC"}
-              />
+              <SceneSpeechContext.Provider value={{ words: scene.words, offset: lead }}>
+                <SceneVisual
+                  scene={scene}
+                  index={i}
+                  title={props.title}
+                  chapter={chapters[i] || null}
+                  transition={i === 0 ? null : transitionFor(props.scenes, i)}
+                  graphicStyle={props.style === "GRAPHIC"}
+                />
+              </SceneSpeechContext.Provider>
             </Sequence>
           );
         })}
@@ -157,21 +260,33 @@ export function HistoryVideo(props: HistoryVideoProps) {
         );
       })}
 
-      {props.sfx.impact && (
-        <Sequence durationInFrames={90} name="SFX pembuka">
-          <Html5Audio src={props.sfx.impact} volume={0.5} />
+      {sfx.map((effect) => (
+        <Sequence key={effect.key} from={effect.from} durationInFrames={75} name="SFX">
+          <Html5Audio src={effect.src} volume={effect.volume} />
         </Sequence>
-      )}
-      {props.sfx.whoosh &&
-        props.scenes.map((scene, i) =>
-          i > 0 && ["map", "title", "stat", "comparison"].includes(scene.visualType) ? (
-            <Sequence key={`sfx-${scene.id}`} from={timings[i].start - CROSSFADE_FRAMES} durationInFrames={60}>
-              <Html5Audio src={props.sfx.whoosh!} volume={0.35} />
-            </Sequence>
-          ) : null,
-        )}
+      ))}
 
-      {props.musicSrc && <Html5Audio src={props.musicSrc} loop volume={musicVolume} />}
+      {music.map((part, k) => (
+        <Sequence key={`music-${k}`} from={part.from} durationInFrames={part.frames} name={`Musik ${k + 1}`}>
+          <Html5Audio
+            src={part.src}
+            loop
+            // Frame volume dihitung dari awal bagian musik ini.
+            volume={(f) => {
+              const fadeIn = part.fadeIn
+                ? interpolate(f, [0, MUSIC_CROSSFADE_FRAMES], [0, 1], { extrapolateRight: "clamp" })
+                : 1;
+              const fadeOut = part.fadeOut
+                ? interpolate(f, [part.frames - MUSIC_CROSSFADE_FRAMES, part.frames], [1, 0], {
+                    extrapolateLeft: "clamp",
+                    extrapolateRight: "clamp",
+                  })
+                : 1;
+              return musicVolume(part.from + f) * fadeIn * fadeOut;
+            }}
+          />
+        </Sequence>
+      ))}
     </AbsoluteFill>
   );
 }

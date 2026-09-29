@@ -1,14 +1,17 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { useBeats } from "../beats";
 import { sideColors, theme } from "../theme";
 import type { Comparison } from "../types";
 
 const HALF = 560;
 
 // Perbandingan dua pihak: kolom kiri merah, kanan biru. Baris dengan angka di
-// kedua sisi digambar sebagai batang yang tumbuh dari tengah.
+// kedua sisi digambar sebagai batang yang tumbuh dari tengah. Tiap baris
+// muncul saat narator membahas aspek itu.
 export function ComparisonScene({ comparison }: { comparison: Comparison }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const beats = useBeats(comparison.rows.map((r) => [r.cue, r.label, r.left, r.right]));
   const header = spring({ frame: frame - 4, fps, config: { damping: 200 } });
   const [leftColor, rightColor] = sideColors;
 
@@ -35,12 +38,12 @@ export function ComparisonScene({ comparison }: { comparison: Comparison }) {
 
       <div style={{ marginTop: 50, display: "flex", flexDirection: "column", gap: 34 }}>
         {comparison.rows.map((row, i) => {
-          const enter = spring({ frame: frame - 16 - i * 12, fps, config: { damping: 200 } });
+          const enter = spring({ frame: frame - beats[i], fps, config: { damping: 200 } });
           const numeric = row.leftValue !== undefined && row.rightValue !== undefined;
           const max = numeric ? Math.max(row.leftValue!, row.rightValue!, 1) : 1;
           const bar = (value: number | undefined) => (numeric ? ((value ?? 0) / max) * (HALF - 40) * enter : 0);
           return (
-            <div key={i} style={{ opacity: enter }}>
+            <div key={i} style={{ opacity: enter, transform: `translateY(${interpolate(enter, [0, 1], [24, 0])}px)` }}>
               <div
                 style={{
                   textAlign: "center",

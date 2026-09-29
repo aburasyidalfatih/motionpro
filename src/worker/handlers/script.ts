@@ -1,6 +1,7 @@
 import { UnrecoverableError } from "bullmq";
 import { Prisma, type Scene } from "@/generated/prisma/client";
 import { scriptAI } from "@/lib/ai";
+import { writeFullScript } from "@/lib/ai/script-pipeline";
 import { moods, visualTypes, type GraphicData, type SceneDraft } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
 import { geocodeMap } from "@/lib/geocode";
@@ -11,7 +12,17 @@ import { normalizeScene } from "@/lib/scene-normalize";
 import type { ScriptJobInput } from "@/lib/queue";
 import type { JobHandler } from "../types";
 
-const GRAPHIC_KEYS = ["map", "timeline", "kinetic", "events", "stats", "comparison", "quote"] as const;
+const GRAPHIC_KEYS = [
+  "map",
+  "timeline",
+  "kinetic",
+  "events",
+  "stats",
+  "comparison",
+  "quote",
+  "chart",
+  "profile",
+] as const;
 
 // Data grafis adegan dari jawaban Gemini; kunci yang kosong tidak disimpan.
 export function graphicDataOf(draft: Partial<SceneDraft>): GraphicData | null {
@@ -77,7 +88,8 @@ async function geocodeProject(projectId: string, setProgress: (progress: number)
   return { maps: maps.length, points, verified };
 }
 
-// Naskah (F-09): ditulis hanya dari research brief, dipecah per adegan.
+// Naskah (F-09): ditulis hanya dari research brief, bertahap per bab
+// (lib/ai/script-pipeline.ts), dipecah per adegan.
 // Dengan input.sceneId, hanya satu adegan yang ditulis ulang (F-10); dengan
 // input.geocode, hanya koordinat peta yang diperiksa ulang.
 export const script: JobHandler = async ({ run, setProgress }) => {
@@ -116,8 +128,10 @@ export const script: JobHandler = async ({ run, setProgress }) => {
     return { rewritten: input.sceneId };
   }
 
-  await setProgress(10);
-  const result = await ai.writeScript(toProjectBrief(project), briefMarkdown);
+  await setProgress(5);
+  const result = await writeFullScript(ai, toProjectBrief(project), briefMarkdown, (fraction) =>
+    setProgress(5 + fraction * 75),
+  );
   await setProgress(80);
   const drafts: SceneDraft[] = [];
   for (const scene of result.scenes) {
@@ -142,5 +156,10 @@ export const script: JobHandler = async ({ run, setProgress }) => {
   // Adegan grafis tidak butuh aset, jadi proyek full grafis langsung "Aset siap".
   await recomputeStatus(project.id);
 
-  return { title: result.title, scenes: result.scenes.length };
+  return {
+    title: result.title,
+    chapters: result.outline.chapters.length,
+    scenes: result.scenes.length,
+    fixes: result.issues.length,
+  };
 };

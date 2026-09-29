@@ -1,4 +1,5 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { useSceneSpeech } from "../beats";
 import { theme } from "../theme";
 
 // Kutipan: tanda kutip besar, teks muncul kata demi kata, lalu sumbernya.
@@ -6,9 +7,16 @@ export function QuoteScene({ text, source }: { text: string; source: string }) {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const words = text.split(/\s+/);
-  // Seluruh kutipan tampil dalam 60% durasi adegan.
-  const revealEnd = Math.max(20, durationInFrames * 0.6);
-  const shown = interpolate(frame, [8, revealEnd], [0, words.length], {
+  // Kutipan terbuka mengikuti narasi; tanpa voice over dalam 60% durasi adegan.
+  const speech = useSceneSpeech();
+  const spoken = speech.words.length > 0;
+  const toFrame = (ms: number) => speech.offset + (ms / 1000) * fps;
+  const revealStart = spoken ? toFrame(speech.words[0].startMs) : 8;
+  const revealEnd = Math.max(
+    revealStart + 20,
+    spoken ? toFrame(speech.words.at(-1)!.endMs) * 0.9 : durationInFrames * 0.6,
+  );
+  const shown = interpolate(frame, [revealStart, revealEnd], [0, words.length], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });

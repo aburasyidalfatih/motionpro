@@ -1,4 +1,5 @@
-import type { AssetRanking, Brief, ResearchPlan, SceneDraft, Script } from "./schemas";
+import type { ScriptPart } from "./prompts";
+import type { AssetRanking, Brief, ChapterReview, Outline, ResearchPlan, SceneDraft } from "./schemas";
 
 export type ProjectBrief = {
   topic: string;
@@ -28,17 +29,29 @@ export type RankingScene = {
   candidates: { title: string; provider: string; kind: string }[];
 };
 
+export type ChapterInput = {
+  project: ProjectBrief;
+  briefMarkdown: string;
+  outline: Outline;
+  part: ScriptPart;
+};
+
 // Semua panggilan AI teks: riset, naskah, dan pemilihan aset. Implementasinya
 // Gemini (produksi) atau tiruan (uji tanpa API key, AI_PROVIDER=fake).
 export interface ScriptAI {
   planResearch(project: ProjectBrief): Promise<ResearchPlan>;
   research(project: ProjectBrief, question: string): Promise<ResearchNote>;
+  // Putaran kedua: pertanyaan lanjutan untuk celah dan angka yang bertentangan.
+  followUpResearch(project: ProjectBrief, notes: ResearchNote[]): Promise<{ questions: string[] }>;
   synthesizeBrief(
     project: ProjectBrief,
     notes: ResearchNote[],
     sources: NumberedSource[],
   ): Promise<Brief>;
-  writeScript(project: ProjectBrief, briefMarkdown: string): Promise<Script>;
+  // Naskah bertahap (lib/ai/script-pipeline.ts): kerangka → tulis per bagian → periksa per bagian.
+  outlineScript(project: ProjectBrief, briefMarkdown: string): Promise<Outline>;
+  writeChapter(input: ChapterInput & { sceneCount: number; previous: string[] }): Promise<{ scenes: SceneDraft[] }>;
+  reviewChapter(input: ChapterInput & { scenes: SceneDraft[] }): Promise<ChapterReview>;
   rewriteScene(input: {
     project: ProjectBrief;
     briefMarkdown: string;

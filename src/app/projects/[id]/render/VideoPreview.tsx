@@ -49,9 +49,22 @@ export function VideoPreview({
           />
           Subtitle ditanam di video
         </label>
-        <SubmitButton disabled={!canRender || busy} pendingText="Memulai render...">
-          Render video 1080p
-        </SubmitButton>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            Resolusi
+            <select
+              name="resolution"
+              defaultValue="1080p"
+              className="rounded-md border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+            >
+              <option value="1080p">1080p</option>
+              <option value="1440p">1440p (lebih tajam di YouTube, render lebih lama)</option>
+            </select>
+          </label>
+          <SubmitButton disabled={!canRender || busy} pendingText="Memulai render...">
+            Render video
+          </SubmitButton>
+        </div>
       </form>
     </div>
   );

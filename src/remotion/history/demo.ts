@@ -26,6 +26,8 @@ export const demoProps: HistoryVideoProps = {
   title: "Pertempuran Surabaya",
   style: "GRAPHIC",
   subtitles: true,
+  finishing: true,
+  motionBlur: true,
   music: [],
   sfx: { whoosh: [], impact: [], pop: [], paper: [] },
   scenes: [

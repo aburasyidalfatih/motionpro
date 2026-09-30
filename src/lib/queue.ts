@@ -42,6 +42,8 @@ export type AudioJobInput = {
   sceneId?: string;
   regenerate?: boolean;
   outdated?: boolean;
+  // Hanya menghitung ulang waktu per kata dari audio yang sudah ada.
+  realign?: boolean;
 };
 
 // Input job VOICE_SAMPLES (tanpa proyek): contoh suara narator untuk halaman
@@ -53,6 +55,9 @@ export type VoiceSamplesJobInput = {
 // Input job RENDER.
 export type RenderJobInput = {
   subtitles?: boolean;
+  // 1440p: YouTube memakai codec yang lebih baik (VP9) untuk video 1440p ke atas,
+  // sehingga hasilnya lebih tajam walau ditonton di 1080p. Render lebih lama.
+  resolution?: "1080p" | "1440p";
 };
 
 // Job untuk satu adegan tidak menandai proyek gagal dan tidak mengunci halaman.

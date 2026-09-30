@@ -7,6 +7,8 @@ import { needsAsset } from "@/lib/ai/schemas";
 import { ensureLocal } from "@/lib/assets/download";
 import { db } from "@/lib/db";
 import { saveFile, storagePath } from "@/lib/storage";
+import { buildChapters } from "@/lib/video/chapters";
+import { masterLoudness } from "@/lib/video/master";
 import { buildVideoProps, projectVideoInclude } from "@/lib/video/props";
 import { buildSrt } from "@/lib/video/srt";
 import { startStaticServer } from "@/lib/video/static-server";
@@ -26,13 +28,25 @@ function getBundle() {
   return bundlePromise;
 }
 
+const GL_RENDERERS = ["angle", "swangle", "egl", "swiftshader", "vulkan", "angle-egl"] as const;
+type GlRenderer = (typeof GL_RENDERERS)[number];
+
+// Butiran film dan light leak memakai WebGL2. Bawaan Chrome sudah cukup di
+// kebanyakan komputer; REMOTION_GL mengganti renderer bila WebGL gagal.
+const glRenderer = (): GlRenderer | null => GL_RENDERERS.find((gl) => gl === process.env.REMOTION_GL) ?? null;
+
 const renderOptions = () => ({
   browserExecutable: process.env.REMOTION_BROWSER_EXECUTABLE || null,
   concurrency: process.env.RENDER_CONCURRENCY || null,
   timeoutInMilliseconds: 120_000,
+  chromiumOptions: { gl: glRenderer() },
 });
 
-// F-27, F-28: render video 1080p 30 fps (H.264, AAC), gambar mini, dan file SRT.
+// Skala render terhadap komposisi 1920×1080: tata letak sama, piksel lebih banyak.
+const RESOLUTION_SCALE = { "1080p": 1, "1440p": 4 / 3 } as const;
+
+// F-27, F-28: render video 1080p/1440p 30 fps (H.264, AAC), mastering audio,
+// gambar mini, file SRT, dan chapter YouTube.
 export const render: JobHandler = async ({ run, setProgress }) => {
   if (!run.projectId) throw new UnrecoverableError("Job render tanpa proyek");
   const input = (run.input ?? {}) as RenderJobInput;
@@ -51,13 +65,19 @@ export const render: JobHandler = async ({ run, setProgress }) => {
 
   const server = await startStaticServer();
   try {
-    const inputProps = await buildVideoProps(project, server.urls, { subtitles: input.subtitles ?? true });
+    const inputProps = await buildVideoProps(project, server.urls, {
+      subtitles: input.subtitles ?? true,
+      // Motion blur menambah waktu render sekitar 20–40%; RENDER_MOTION_BLUR=off mematikannya.
+      motionBlur: process.env.RENDER_MOTION_BLUR !== "off",
+      finishing: process.env.RENDER_FINISHING !== "off",
+    });
     const serveUrl = await getBundle();
     await setProgress(5);
 
     const composition = await selectComposition({ serveUrl, id: COMPOSITION_ID, inputProps, ...renderOptions() });
     const base = `videos/${project.id}/${run.id}`;
     const videoPath = storagePath(`${base}.mp4`);
+    const scale = RESOLUTION_SCALE[input.resolution ?? "1080p"];
 
     let lastPercent = -1;
     await renderMedia({
@@ -72,14 +92,19 @@ export const render: JobHandler = async ({ run, setProgress }) => {
       colorSpace: "bt709",
       audioCodec: "aac",
       audioBitrate: "320k",
+      scale,
       onProgress: ({ progress }) => {
-        const percent = Math.floor(5 + progress * 90);
+        const percent = Math.floor(5 + progress * 88);
         if (percent !== lastPercent) {
           lastPercent = percent;
           void setProgress(percent);
         }
       },
     });
+
+    // Mastering audio ke -14 LUFS (standar YouTube); RENDER_MASTERING=off melewatinya.
+    if (process.env.RENDER_MASTERING !== "off") await masterLoudness(videoPath);
+    await setProgress(95);
 
     // Gambar mini dari tengah adegan pertama yang bukan kartu judul, atau adegan pertama.
     const timings = sceneTimings(inputProps);
@@ -110,10 +135,11 @@ export const render: JobHandler = async ({ run, setProgress }) => {
         storageKey: `${base}.mp4`,
         thumbnailKey: `${base}.jpg`,
         srtKey: `${base}.srt`,
+        chapters: buildChapters(inputProps, composition.fps),
         durationMs: Math.round((composition.durationInFrames / composition.fps) * 1000),
         sizeBytes: BigInt(size),
-        width: composition.width,
-        height: composition.height,
+        width: Math.round(composition.width * scale),
+        height: Math.round(composition.height * scale),
         fps: composition.fps,
       },
     });

@@ -43,7 +43,7 @@ export default async function RenderPage({ params }: PageProps<"/projects/[id]/r
           <h2 className="text-lg font-semibold">Pratinjau</h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             {scenes.length} adegan · {formatDuration(totalMs)}. Pratinjau diputar langsung di browser; hasil render
-            identik, dalam 1920×1080 30 fps.
+            identik, dalam 1080p atau 1440p 30 fps, dengan motion blur saat transisi dan audio dinormalkan ke -14 LUFS.
           </p>
         </div>
 

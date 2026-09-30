@@ -35,12 +35,14 @@ async function pickSfx(urls: UrlResolver) {
 export async function buildVideoProps(
   project: ProjectForVideo,
   urls: UrlResolver,
-  options: { subtitles: boolean },
+  options: { subtitles: boolean; motionBlur?: boolean; finishing?: boolean },
 ): Promise<HistoryVideoProps> {
   return {
     style: project.style,
     title: project.scenes.find((s) => s.visualType === "title")?.onScreenText || project.topic,
     subtitles: options.subtitles,
+    finishing: options.finishing ?? true,
+    motionBlur: options.motionBlur ?? false,
     music: project.musicTrack
       ? musicPlan(project.musicTrack, project.musicPerChapter ? await listMusic() : [], project.scenes).map((part) => ({
           src: urls.library(`music/${part.track}`),

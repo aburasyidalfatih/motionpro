@@ -69,6 +69,19 @@ export function VideoCard({ video, topic, projectId }: { video: Video; topic: st
           </form>
         </div>
       </div>
+      {video.chapters && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-zinc-600 dark:text-zinc-400">
+            Chapter YouTube (salin ke deskripsi video)
+          </summary>
+          <textarea
+            readOnly
+            value={video.chapters}
+            rows={Math.min(12, video.chapters.split("\n").length)}
+            className="mt-2 w-full rounded-md border border-zinc-300 bg-transparent p-2 font-mono text-xs dark:border-zinc-700"
+          />
+        </details>
+      )}
     </li>
   );
 }

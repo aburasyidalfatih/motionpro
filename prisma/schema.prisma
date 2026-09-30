@@ -250,6 +250,8 @@ model Video {
   storageKey   String
   thumbnailKey String?
   srtKey       String?
+  // Daftar chapter untuk deskripsi YouTube ("0:00 Pembuka" per baris), dari kartu bab.
+  chapters     String?
   durationMs   Int
   sizeBytes    BigInt
   width        Int

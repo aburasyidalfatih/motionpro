@@ -58,3 +58,6 @@ dump.rdb
 /library/**/*.wav
 /library/**/*.ogg
 /library/**/*.m4a
+
+# whisper.cpp dan model Whisper (npm run whisper:setup)
+/whisper

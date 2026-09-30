@@ -78,6 +78,10 @@ Tanpa API key, isi `AI_PROVIDER=fake` di `.env` untuk menguji alur aplikasi deng
 
 ## Render (Fase 3)
 
+- **Finishing:** butiran film, grading warna, vignette, light leak di kartu judul dan bab (`@remotion/effects`), dan motion blur saat transisi (`@remotion/motion-blur`, hanya saat render). Audio akhir dinormalkan ke -14 LUFS, standar YouTube. Pilih **1440p** di tab Render agar YouTube memakai codec yang lebih tajam. Video dengan kartu bab mendapat daftar **chapter YouTube** di galeri, siap disalin ke deskripsi.
+- **Waktu per kata:** dihitung dari jeda nyata di audio voice over, dicocokkan dengan tanda baca. Untuk ketepatan per kata, pasang Whisper sekali: isi `WHISPER_MODEL="small"` di `.env`, jalankan `npm run whisper:setup`, restart worker, lalu klik **Hitung ulang waktu kata** di tab Audio untuk voice over yang sudah ada.
+- **Mengembangkan template dengan agen AI:** pasang skill resmi Remotion dengan `npx skills add remotion-dev/skills` (praktik terbaik Remotion untuk Claude Code, Cursor, dan sejenisnya).
+
 - Tab **Render** di halaman proyek memutar pratinjau video lengkap di browser, lalu **Render video 1080p** memasukkan render ke antrian. Hasilnya (MP4, gambar mini, SRT) disimpan di `storage/videos/` dan tampil di **Galeri**.
 - Render memakan hampir seluruh CPU. Video 10 menit butuh sekitar 10–40 menit tergantung komputer. Atur jumlah tab Chrome paralel lewat `RENDER_CONCURRENCY`.
 - Coba template tanpa data proyek: menu **Pratinjau template**, atau `npm run studio` lalu pilih komposisi **HistoryVideo** (data contoh Pertempuran Surabaya).
@@ -90,6 +94,7 @@ Tanpa API key, isi `AI_PROVIDER=fake` di `.env` untuk menguji alur aplikasi deng
 | `npm run dev` | Web saja, http://localhost:3000 |
 | `npm run worker` | Worker saja (restart otomatis saat kode berubah) |
 | `npm run studio` | Remotion Studio untuk mendesain dan mempratinjau template video |
+| `npm run whisper:setup` | Memasang whisper.cpp dan model Whisper (`WHISPER_MODEL`) untuk waktu kata yang akurat |
 | `npm run check:ai` | Menguji riset dan naskah Gemini untuk 5 topik (gate Fase 1) |
 | `npm run db:migrate` | Membuat dan menjalankan migrasi database |
 | `npm run db:studio` | Melihat isi database di browser |

@@ -17,7 +17,10 @@ export async function startRender(projectId: string, formData?: FormData) {
   const retrying = project.status === "FAILED" && project.failedStage === "RENDER";
   if (!RENDERABLE.includes(project.status) && !retrying) return;
 
-  const input: RenderJobInput = { subtitles: formData ? formData.get("subtitles") === "on" : true };
+  const input: RenderJobInput = {
+    subtitles: formData ? formData.get("subtitles") === "on" : true,
+    resolution: formData?.get("resolution") === "1440p" ? "1440p" : "1080p",
+  };
   await db.project.update({ where: { id: projectId }, data: { status: "RENDERING", failedStage: null } });
   await enqueueJob("RENDER", { projectId, input });
   redirect(`/projects/${projectId}/render`);

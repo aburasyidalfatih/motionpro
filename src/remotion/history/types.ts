@@ -78,4 +78,9 @@ export type HistoryVideoProps = {
   // Efek suara per jenis; beberapa file per jenis dipakai bergantian.
   sfx: { whoosh: string[]; impact: string[]; pop: string[]; paper: string[] };
   subtitles: boolean;
+  // Butiran film, grading, dan light leak (lihat finishing.tsx).
+  finishing: boolean;
+  // Motion blur saat transisi; menambah waktu render, hanya aktif saat render
+  // atau di Chrome dengan HTML-in-canvas.
+  motionBlur: boolean;
 };

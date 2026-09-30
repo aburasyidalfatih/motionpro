@@ -1,5 +1,16 @@
-import { AbsoluteFill, Easing, Html5Audio, interpolate, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
+import { HtmlInCanvasMotionBlur } from "@remotion/motion-blur";
+import {
+  AbsoluteFill,
+  Easing,
+  Html5Audio,
+  interpolate,
+  isHtmlInCanvasSupported,
+  Sequence,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import { beatFrames, popCues, SceneSpeechContext } from "./beats";
+import { FilmGrain, GRADE_FILTER, GradeOverlay, LightLeakFlash } from "./finishing";
 import { Backdrop, Heading } from "./graphics/Backdrop";
 import { ChartScene } from "./graphics/ChartScene";
 import { ComparisonScene } from "./graphics/ComparisonScene";
@@ -151,6 +162,20 @@ function SceneVisual({
   );
 }
 
+// Motion blur selama transisi geser, zoom, dan sapuan: beberapa sampel frame
+// pecahan dirata-rata seperti rana kamera (HTML-in-canvas). Hanya saat render
+// atau di Chrome yang mendukungnya; di luar transisi adegan digambar biasa.
+function TransitionBlur({ enabled, children }: { enabled: boolean; children: React.ReactNode }) {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+  if (!enabled || frame >= CROSSFADE_FRAMES || !isHtmlInCanvasSupported()) return children;
+  return (
+    <HtmlInCanvasMotionBlur width={width} height={height} samples={6} shutterAngle={200}>
+      {children}
+    </HtmlInCanvasMotionBlur>
+  );
+}
+
 // Volume musik: turun saat narasi berbicara (ducking), fade in di awal dan
 // fade out di akhir video.
 function useMusicVolume(props: HistoryVideoProps) {
@@ -223,11 +248,12 @@ export function HistoryVideo(props: HistoryVideoProps) {
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
-      <AbsoluteFill style={{ opacity: endFade }}>
+      <AbsoluteFill style={{ opacity: endFade, filter: props.finishing ? GRADE_FILTER : undefined }}>
         {props.scenes.map((scene, i) => {
           const { start, frames } = timings[i];
           const lead = i === 0 ? 0 : CROSSFADE_FRAMES;
           const tail = i === props.scenes.length - 1 ? END_HOLD_FRAMES : 0;
+          const transition = i === 0 ? null : transitionFor(props.scenes, i);
           return (
             <Sequence
               key={scene.id}
@@ -236,19 +262,41 @@ export function HistoryVideo(props: HistoryVideoProps) {
               name={`Adegan ${i + 1}`}
             >
               <SceneSpeechContext.Provider value={{ words: scene.words, offset: lead }}>
-                <SceneVisual
-                  scene={scene}
-                  index={i}
-                  title={props.title}
-                  chapter={chapters[i] || null}
-                  transition={i === 0 ? null : transitionFor(props.scenes, i)}
-                  graphicStyle={props.style === "GRAPHIC"}
-                />
+                <TransitionBlur enabled={props.motionBlur && transition !== null && transition !== "fade"}>
+                  <SceneVisual
+                    scene={scene}
+                    index={i}
+                    title={props.title}
+                    chapter={chapters[i] || null}
+                    transition={transition}
+                    graphicStyle={props.style === "GRAPHIC"}
+                  />
+                </TransitionBlur>
               </SceneSpeechContext.Provider>
             </Sequence>
           );
         })}
       </AbsoluteFill>
+
+      {props.finishing && (
+        <>
+          <GradeOverlay />
+          {props.scenes.map((scene, i) =>
+            scene.visualType === "title" ? (
+              // Kilatan memuncak tepat di potongan, lalu surut sebelum judul terbaca.
+              <Sequence
+                key={`leak-${scene.id}`}
+                from={Math.max(0, timings[i].start - (i === 0 ? 0 : CROSSFADE_FRAMES) - 18)}
+                durationInFrames={40}
+                name="Light leak"
+              >
+                <LightLeakFlash seed={i} />
+              </Sequence>
+            ) : null,
+          )}
+          <FilmGrain />
+        </>
+      )}
 
       {props.scenes.map((scene, i) => {
         const { start, frames } = timings[i];

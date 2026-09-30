@@ -9,15 +9,19 @@ import { findSceneOrRefresh } from "@/lib/scenes";
 
 // F-19: voice over untuk adegan yang belum punya ("missing"), semua adegan
 // ("all"), atau adegan yang suara/gayanya berbeda dari pengaturan proyek
-// ("outdated"). Semua argumen diikat lewat bind, jadi FormData dari form
+// ("outdated"), atau hanya menghitung ulang waktu per kata ("realign"). Semua argumen diikat lewat bind, jadi FormData dari form
 // masuk sebagai argumen ketiga dan diabaikan.
-export async function startAudio(projectId: string, mode: "missing" | "all" | "outdated" = "missing") {
+export async function startAudio(projectId: string, mode: "missing" | "all" | "outdated" | "realign" = "missing") {
   if (await hasActiveStageJob(projectId)) return;
   const project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
   if (project.status === "FAILED") {
     await db.project.update({ where: { id: projectId }, data: { status: "SCRIPT_READY", failedStage: null } });
   }
-  const input: AudioJobInput = { regenerate: mode === "all", outdated: mode === "outdated" };
+  const input: AudioJobInput = {
+    regenerate: mode === "all",
+    outdated: mode === "outdated",
+    realign: mode === "realign",
+  };
   await enqueueJob("AUDIO", { projectId, input });
   redirect(`/projects/${projectId}/audio`);
 }

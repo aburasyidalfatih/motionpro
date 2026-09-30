@@ -151,6 +151,78 @@ export function estimateWordTimings(text: string, startMs: number, endMs: number
   });
 }
 
+// Rentang bersuara (ms), jeda lebih pendek dari minPauseMs digabung.
+export function voicedRuns(pcm: Buffer, sampleRate: number, minPauseMs = 140, threshold = 600) {
+  const samples = pcm.length / 2;
+  const window = Math.max(1, Math.round(sampleRate / 100)); // 10 ms
+  const toMs = (sample: number) => (sample / sampleRate) * 1000;
+  const runs: { startMs: number; endMs: number }[] = [];
+  for (let start = 0; start < samples; start += window) {
+    let peak = 0;
+    for (let j = start; j < Math.min(start + window, samples); j++)
+      peak = Math.max(peak, Math.abs(pcm.readInt16LE(j * 2)));
+    if (peak < threshold) continue;
+    const last = runs.at(-1);
+    const startMs = toMs(start);
+    const endMs = toMs(Math.min(start + window, samples));
+    if (last && startMs - last.endMs < minPauseMs) last.endMs = endMs;
+    else runs.push({ startMs, endMs });
+  }
+  return runs;
+}
+
+// Kata yang diakhiri tanda baca: narator biasanya berhenti sejenak di sini.
+const PHRASE_END = /[.,!?;:…—–)"”]$/;
+
+// Waktu per kata yang mengikuti jeda nyata di audio: jeda di audio dicocokkan
+// dengan tanda baca di teks (yang terdekat dari perkiraan), lalu kata di tiap
+// frasa dibagi menurut panjangnya di antara jeda itu. Jauh lebih tepat daripada
+// membagi seluruh ucapan secara rata, karena jeda antarkalimat bisa 0,3–1 detik.
+export function pausedWordTimings(text: string, pcm: Buffer, sampleRate: number): WordTiming[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const bounds = speechBounds(pcm, sampleRate);
+  const estimate = estimateWordTimings(text, bounds.startMs, bounds.endMs);
+  if (words.length < 2) return estimate;
+
+  const runs = voicedRuns(pcm, sampleRate).filter((r) => r.endMs > bounds.startMs && r.startMs < bounds.endMs);
+  const gaps = runs.slice(1).map((run, i) => ({ startMs: runs[i].endMs, endMs: run.startMs }));
+  const tolerance = Math.max(500, (bounds.endMs - bounds.startMs) * 0.2);
+
+  // Jeda untuk tiap akhir frasa, berurutan dan tidak dipakai dua kali.
+  const anchors: { word: number; gap: { startMs: number; endMs: number } }[] = [];
+  let nextGap = 0;
+  for (let i = 0; i < words.length - 1; i++) {
+    if (!PHRASE_END.test(words[i])) continue;
+    const expected = (estimate[i].endMs + estimate[i + 1].startMs) / 2;
+    let best = -1;
+    for (let g = nextGap; g < gaps.length; g++) {
+      const mid = (gaps[g].startMs + gaps[g].endMs) / 2;
+      const distance = Math.abs(mid - expected);
+      if (
+        distance <= tolerance &&
+        (best === -1 || distance < Math.abs((gaps[best].startMs + gaps[best].endMs) / 2 - expected))
+      ) {
+        best = g;
+      }
+    }
+    if (best === -1) continue;
+    anchors.push({ word: i, gap: gaps[best] });
+    nextGap = best + 1;
+  }
+
+  // Kata di antara dua jeda dibagi menurut panjangnya.
+  const result: WordTiming[] = [];
+  let from = 0;
+  let startMs = bounds.startMs;
+  for (const anchor of [...anchors, { word: words.length - 1, gap: { startMs: bounds.endMs, endMs: bounds.endMs } }]) {
+    const phrase = words.slice(from, anchor.word + 1).join(" ");
+    result.push(...estimateWordTimings(phrase, startMs, Math.max(startMs + 1, anchor.gap.startMs)));
+    from = anchor.word + 1;
+    startMs = anchor.gap.endMs;
+  }
+  return result;
+}
+
 // Nada lembut sebagai pengganti suara pada mode tiruan.
 export function tonePcm(durationMs: number, sampleRate = 24_000) {
   const samples = Math.round((durationMs / 1000) * sampleRate);

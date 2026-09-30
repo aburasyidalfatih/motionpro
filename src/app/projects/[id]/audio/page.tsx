@@ -162,6 +162,18 @@ function AudioBody({
               </form>
             )}
             {voiced > 0 && (
+              <form action={startAudio.bind(null, project.id, "realign")}>
+                <SubmitButton
+                  variant="secondary"
+                  disabled={busy}
+                  pendingText="Memulai..."
+                  title="Waktu tiap kata dihitung ulang dari audio: subtitle dan elemen grafis lebih pas dengan narasi"
+                >
+                  Hitung ulang waktu kata
+                </SubmitButton>
+              </form>
+            )}
+            {voiced > 0 && (
               <form action={startAudio.bind(null, project.id, "all")}>
                 <SubmitButton variant="secondary" disabled={busy} pendingText="Memulai...">
                   Buat ulang semua

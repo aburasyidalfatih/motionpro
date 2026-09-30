@@ -16,6 +16,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
+    "whisper:setup": "tsx src/scripts/setup-whisper.ts",
     "check:ai": "tsx src/scripts/check-ai.ts",
     "map:data": "tsx src/scripts/build-map-data.ts"
   },
@@ -24,7 +25,10 @@
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@remotion/bundler": "4.0.529",
+    "@remotion/effects": "4.0.529",
     "@remotion/fonts": "4.0.529",
+    "@remotion/install-whisper-cpp": "4.0.529",
+    "@remotion/motion-blur": "4.0.529",
     "@remotion/player": "4.0.529",
     "@remotion/renderer": "4.0.529",
     "bullmq": "^6.3.9",

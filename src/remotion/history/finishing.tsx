@@ -1,6 +1,15 @@
 import { lightLeak } from "@remotion/effects/light-leak";
-import { useState } from "react";
-import { AbsoluteFill, interpolate, random, Solid, useCurrentFrame, useVideoConfig } from "remotion";
+import { useEffect, useState } from "react";
+import {
+  AbsoluteFill,
+  continueRender,
+  delayRender,
+  interpolate,
+  random,
+  Solid,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 
 // Lapisan akhir ("finishing") di atas seluruh video, seperti grading di
 // editor profesional: butiran film, vignette, dan kilatan cahaya (light leak)
@@ -12,7 +21,6 @@ const GRAIN_TILES = 4;
 // Tekstur butiran abu-abu acak, dibuat sekali. Memakai random() Remotion
 // dengan seed tetap agar sama di semua tab render yang berjalan paralel.
 function grainTiles() {
-  if (typeof document === "undefined") return [];
   return Array.from({ length: GRAIN_TILES }, (_, t) => {
     const canvas = document.createElement("canvas");
     canvas.width = GRAIN_TILE;
@@ -34,7 +42,14 @@ function grainTiles() {
 // lebih ringan daripada menghitung noise baru tiap frame.
 export function FilmGrain({ strength = 0.09 }: { strength?: number }) {
   const frame = useCurrentFrame();
-  const [tiles] = useState(grainTiles);
+  // Tekstur dibuat setelah dipasang di browser (bukan saat render server
+  // Next.js, agar HTML server dan browser sama); render menunggu sampai siap.
+  const [tiles, setTiles] = useState<string[]>([]);
+  const [handle] = useState(() => delayRender("Membuat tekstur butiran film"));
+  useEffect(() => {
+    setTiles(grainTiles());
+    continueRender(handle);
+  }, [handle]);
   if (tiles.length === 0) return null;
   const x = Math.floor(random(`grain-x-${frame}`) * GRAIN_TILE);
   const y = Math.floor(random(`grain-y-${frame}`) * GRAIN_TILE);

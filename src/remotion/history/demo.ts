@@ -42,6 +42,28 @@ export const demoProps: HistoryVideoProps = {
       onScreenText: "Ultimatum dari Pelabuhan",
       words: words("Semuanya berawal dari pendaratan di pelabuhan."),
     }),
+    scene("demo-region", 8000, "map", {
+      words: words(
+        "Dari Singapura, armada Inggris berlayar ke Jawa. Di bekas Malaya, Inggris berkuasa; Indonesia baru merdeka.",
+      ),
+      graphic: {
+        map: {
+          caption: "Jalur armada Sekutu, Oktober 1945",
+          route: false,
+          sides: ["Inggris", "Indonesia"],
+          points: [
+            { label: "Singapura", lat: 1.29, lng: 103.85, side: 0, unit: "naval" },
+            { label: "Jakarta", lat: -6.2, lng: 106.85, side: 1 },
+            { label: "Surabaya", lat: -7.26, lng: 112.75, side: 1 },
+          ],
+          arrows: [{ from: 0, to: 2, side: 0 }],
+          countries: [
+            { name: "Malaysia", side: 0, cue: "Malaya" },
+            { name: "Indonesia", side: 1 },
+          ],
+        },
+      },
+    }),
     scene("demo-map", 8000, "map", {
       words: words(
         "Pasukan Inggris mendarat di Tanjung Perak, lalu bergerak ke pusat Surabaya. Dari Sidoarjo, pejuang datang membantu.",
@@ -52,11 +74,12 @@ export const demoProps: HistoryVideoProps = {
           route: false,
           sides: ["Sekutu (Inggris)", "Pejuang Indonesia"],
           points: [
-            { label: "Tanjung Perak", lat: -7.2, lng: 112.73, side: 0 },
-            { label: "Surabaya", lat: -7.26, lng: 112.75, side: 1 },
+            { label: "Tanjung Perak", lat: -7.2, lng: 112.73, side: 0, unit: "infantry" },
+            { label: "Surabaya", lat: -7.26, lng: 112.75, side: 1, battle: true },
             { label: "Gresik", lat: -7.16, lng: 112.65 },
-            { label: "Sidoarjo", lat: -7.45, lng: 112.72, side: 1 },
+            { label: "Sidoarjo", lat: -7.45, lng: 112.72, side: 1, unit: "infantry" },
           ],
+          front: { points: [2, 1, 3] },
           arrows: [
             { from: 0, to: 1, side: 0 },
             { from: 3, to: 1, side: 1 },

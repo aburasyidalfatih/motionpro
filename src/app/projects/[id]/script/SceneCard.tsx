@@ -17,7 +17,11 @@ function describeGraphic(g: GraphicData) {
     const sides = g.map.sides?.length ? ` · ${g.map.sides.join(" vs ")}` : "";
     // ✓ = koordinat dari OpenStreetMap, ? = tebakan AI yang tidak ditemukan di OpenStreetMap.
     const points = g.map.points.map((p) => `${p.label}${p.verified ? " ✓" : p.verified === false ? " ?" : ""}`);
-    parts.push(`Peta: ${g.map.caption} · ${points.join(", ")}${arrows}${sides}`);
+    const countries = g.map.countries?.length ? ` · negara: ${g.map.countries.map((c) => c.name).join(", ")}` : "";
+    const units = g.map.points.filter((p) => p.unit).length;
+    parts.push(
+      `Peta: ${g.map.caption} · ${points.join(", ")}${arrows}${sides}${countries}${units ? ` · ${units} satuan` : ""}`,
+    );
   }
   if (g.events) parts.push(`Timeline: ${g.events.map((e) => e.date).join(" → ")}`);
   if (g.stats)

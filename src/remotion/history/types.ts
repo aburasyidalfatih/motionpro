@@ -4,8 +4,20 @@
 
 export type WordTiming = { word: string; startMs: number; endMs: number };
 
+// Jenis satuan militer untuk simbol peta (APP-6/MIL-STD-2525, lewat milsymbol).
+export type UnitKind = "infantry" | "cavalry" | "armor" | "artillery" | "naval" | "air" | "hq";
+
 // `cue`: kata atau frasa dari narasi saat elemen itu muncul (lihat beats.ts).
-export type MapPoint = { label: string; lat: number; lng: number; side?: number; cue?: string };
+// `unit`: titik digambar sebagai simbol satuan; `battle`: titik lokasi bentrokan.
+export type MapPoint = {
+  label: string;
+  lat: number;
+  lng: number;
+  side?: number;
+  cue?: string;
+  unit?: UnitKind;
+  battle?: boolean;
+};
 
 export type SceneMap = {
   caption: string;
@@ -15,6 +27,10 @@ export type SceneMap = {
   sides?: string[];
   arrows?: { from: number; to: number; side: number; cue?: string }[];
   zones?: { point: number; radiusKm: number; side: number }[];
+  // Negara masa kini yang disorot dengan warna pihak (nama Natural Earth, Inggris).
+  countries?: { name: string; side: number; cue?: string }[];
+  // Garis depan melalui titik-titik (indeks), tergambar saat cue diucapkan.
+  front?: { points: number[]; cue?: string };
 };
 
 export type TimelineMark = { date: string; label: string; cue?: string };

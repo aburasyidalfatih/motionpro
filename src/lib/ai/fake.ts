@@ -143,8 +143,8 @@ function sampleScene(project: ProjectBrief, i: number): SceneDraft {
           route: false,
           sides: ["Pihak A", "Pihak B"],
           points: [
-            { label: "Surabaya", lat: -7.26, lng: 112.75, side: 1 },
-            { label: "Tanjung Perak", lat: -7.2, lng: 112.73, side: 0 },
+            { label: "Surabaya", lat: -7.26, lng: 112.75, side: 1, battle: true },
+            { label: "Tanjung Perak", lat: -7.2, lng: 112.73, side: 0, unit: "infantry" },
           ],
           arrows: [{ from: 1, to: 0, side: 0 }],
         },

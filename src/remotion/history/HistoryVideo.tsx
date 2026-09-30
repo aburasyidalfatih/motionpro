@@ -47,11 +47,11 @@ const pick = (files: string[], i: number) => (files.length ? files[i % files.len
 type Graphic = { layer: React.ReactNode; heading: boolean };
 
 // Visual grafis sesuai tipe adegan, atau null bila datanya tidak ada.
-function graphicFor(scene: SceneProps): Graphic | null {
+function graphicFor(scene: SceneProps, mapIntro: boolean): Graphic | null {
   const g = scene.graphic;
   switch (scene.visualType) {
     case "map":
-      return g.map?.points.length ? { layer: <MapLayer map={g.map} />, heading: false } : null;
+      return g.map?.points.length ? { layer: <MapLayer map={g.map} intro={mapIntro} />, heading: false } : null;
     case "kinetic_text":
       return g.kinetic?.lines.length ? { layer: <KineticText {...g.kinetic} />, heading: false } : null;
     case "timeline":
@@ -93,6 +93,7 @@ function SceneVisual({
   chapter,
   transition,
   graphicStyle,
+  mapIntro,
 }: {
   scene: SceneProps;
   index: number;
@@ -100,6 +101,7 @@ function SceneVisual({
   chapter: number | null;
   transition: TransitionKind | null;
   graphicStyle: boolean;
+  mapIntro: boolean;
 }) {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
@@ -107,7 +109,7 @@ function SceneVisual({
     extrapolateRight: "clamp",
     easing: Easing.inOut(Easing.cubic),
   });
-  const graphic = graphicFor(scene);
+  const graphic = graphicFor(scene, mapIntro);
   const headingIn = interpolate(frame, [4, 16], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   // Grafik terus mendekat perlahan sepanjang adegan agar layar tidak pernah diam.
   const drift = interpolate(frame, [0, durationInFrames], [1, 1.045]);
@@ -162,6 +164,26 @@ function SceneVisual({
   );
 }
 
+// Pusat kasar (bujur, lintang) titik-titik peta sebuah adegan.
+function mapCenter(scene: SceneProps): [number, number] | null {
+  const points = scene.visualType === "map" ? scene.graphic.map?.points : undefined;
+  if (!points?.length) return null;
+  return [points.reduce((s, p) => s + p.lng, 0) / points.length, points.reduce((s, p) => s + p.lat, 0) / points.length];
+}
+
+// Peta yang diawali globe: peta pertama video dan peta yang lokasinya jauh
+// (lebih dari 20°) dari peta sebelumnya, agar penonton tahu di mana cerita berpindah.
+function mapIntros(scenes: SceneProps[]) {
+  let previous: [number, number] | null = null;
+  return scenes.map((scene) => {
+    const center = mapCenter(scene);
+    if (!center) return false;
+    const far = !previous || Math.hypot(center[0] - previous[0], center[1] - previous[1]) > 20;
+    previous = center;
+    return far;
+  });
+}
+
 // Motion blur selama transisi geser, zoom, dan sapuan: beberapa sampel frame
 // pecahan dirata-rata seperti rana kamera (HTML-in-canvas). Hanya saat render
 // atau di Chrome yang mendukungnya; di luar transisi adegan digambar biasa.
@@ -212,6 +234,7 @@ export function HistoryVideo(props: HistoryVideoProps) {
   const { durationInFrames } = useVideoConfig();
   const timings = sceneTimings(props);
   const chapters = chapterNumbers(props.scenes);
+  const intros = mapIntros(props.scenes);
   const musicVolume = useMusicVolume(props);
   const endFade = interpolate(frame, [durationInFrames - END_HOLD_FRAMES, durationInFrames], [1, 0], {
     extrapolateLeft: "clamp",
@@ -270,6 +293,7 @@ export function HistoryVideo(props: HistoryVideoProps) {
                     chapter={chapters[i] || null}
                     transition={transition}
                     graphicStyle={props.style === "GRAPHIC"}
+                    mapIntro={intros[i]}
                   />
                 </TransitionBlur>
               </SceneSpeechContext.Provider>

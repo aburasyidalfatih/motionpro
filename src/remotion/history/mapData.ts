@@ -18,6 +18,7 @@ export type River = Shape<Feature<MultiLineString>> & { rank: number };
 export type Lake = Shape<Feature<Polygon>> & { rank: number };
 export type Border = Shape<Feature<MultiLineString>>;
 export type Place = { name: string; lng: number; lat: number; rank: number };
+export type Country = Shape<Feature> & { name: string };
 
 export type MapLayers = {
   islands: Island[];
@@ -25,6 +26,8 @@ export type MapLayers = {
   lakes: Lake[];
   borders: Border[];
   places: Place[];
+  // Negara masa kini (resolusi 50m) untuk menyorot wilayah pihak yang bertikai.
+  countries: Country[];
 };
 
 // Poligon yang arah titiknya terbalik dianggap d3 sebagai seluruh bumi kecuali
@@ -68,6 +71,90 @@ function toBorders(topology: unknown): Border[] {
   );
 }
 
+// Negara per nama. Poligon dengan arah titik terbalik diperbaiki seperti daratan.
+function toCountries(topology: unknown): Country[] {
+  const t = topology as Topology<{ countries: GeometryCollection<{ name: string }> }>;
+  const collection = feature(t, t.objects.countries) as FeatureCollection;
+  return collection.features.map((f) => {
+    const g = f.geometry;
+    const fixed: Feature =
+      g.type === "Polygon"
+        ? polygon(g.coordinates)
+        : g.type === "MultiPolygon"
+          ? {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "MultiPolygon",
+                coordinates: g.coordinates.map((rings) => polygon(rings).geometry.coordinates),
+              },
+            }
+          : f;
+    return { name: String((f.properties as { name?: string } | null)?.name ?? ""), ...withBounds(fixed) };
+  });
+}
+
+// Nama negara dari naskah (Inggris atau Indonesia) ke nama di Natural Earth.
+const COUNTRY_ALIASES: Record<string, string> = {
+  usa: "United States of America",
+  us: "United States of America",
+  "united states": "United States of America",
+  "amerika serikat": "United States of America",
+  amerika: "United States of America",
+  uk: "United Kingdom",
+  britain: "United Kingdom",
+  "great britain": "United Kingdom",
+  inggris: "United Kingdom",
+  "britania raya": "United Kingdom",
+  rusia: "Russia",
+  "uni soviet": "Russia",
+  "soviet union": "Russia",
+  ussr: "Russia",
+  tiongkok: "China",
+  cina: "China",
+  china: "China",
+  jepang: "Japan",
+  belanda: "Netherlands",
+  prancis: "France",
+  perancis: "France",
+  jerman: "Germany",
+  turki: "Turkey",
+  mesir: "Egypt",
+  "arab saudi": "Saudi Arabia",
+  ukraina: "Ukraine",
+  filipina: "Philippines",
+  "korea selatan": "South Korea",
+  "korea utara": "North Korea",
+  italia: "Italy",
+  spanyol: "Spain",
+  portugis: "Portugal",
+  yunani: "Greece",
+  "selandia baru": "New Zealand",
+  "timor leste": "Timor-Leste",
+  palestina: "Palestine",
+  irak: "Iraq",
+  suriah: "Syria",
+  yordania: "Jordan",
+  lebanon: "Lebanon",
+  kamboja: "Cambodia",
+  "papua nugini": "Papua New Guinea",
+};
+
+const normalizeName = (name: string) =>
+  name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+export function findCountry(countries: Country[], name: string) {
+  const key = normalizeName(name);
+  const target = normalizeName(COUNTRY_ALIASES[key] ?? name);
+  return countries.find((c) => normalizeName(c.name) === target);
+}
+
 // Garis datar [lng, lat, lng, lat, ...] menjadi daftar posisi.
 const positions = (flat: number[]): Position[] =>
   Array.from({ length: flat.length / 2 }, (_, i) => [flat[i * 2], flat[i * 2 + 1]]);
@@ -93,6 +180,10 @@ function toPlaces(rows: unknown): Place[] {
   return (rows as [string, number, number, number][]).map(([name, lng, lat, rank]) => ({ name, lng, lat, rank }));
 }
 
+let countriesPromise: Promise<Country[]> | undefined;
+const countries = () =>
+  (countriesPromise ??= import("world-atlas/countries-50m.json").then((m) => toCountries(m.default)));
+
 // JSON besar diimpor dinamis agar tidak ikut bundle Player sejak awal.
 const loaders = {
   wide: () =>
@@ -102,6 +193,7 @@ const loaders = {
       import("./data/rivers-50m.json").then((m) => toRivers(m.default)),
       import("./data/lakes-50m.json").then((m) => toLakes(m.default)),
       import("./data/places.json").then((m) => toPlaces(m.default)),
+      countries(),
     ]),
   detailed: () =>
     Promise.all([
@@ -110,23 +202,32 @@ const loaders = {
       import("./data/rivers-10m.json").then((m) => toRivers(m.default)),
       import("./data/lakes-10m.json").then((m) => toLakes(m.default)),
       import("./data/places.json").then((m) => toPlaces(m.default)),
+      countries(),
     ]),
 };
 
 const cache: Partial<Record<keyof typeof loaders, Promise<MapLayers>>> = {};
 
 function loadLayers(kind: keyof typeof loaders) {
-  cache[kind] ??= loaders[kind]().then(([islands, borders, rivers, lakes, places]) => ({
+  cache[kind] ??= loaders[kind]().then(([islands, borders, rivers, lakes, places, countries]) => ({
     islands,
     borders,
     rivers,
     lakes,
     places,
+    countries,
   }));
   return cache[kind];
 }
 
-const fallback: MapLayers = { islands: toIslands(land50), rivers: [], lakes: [], borders: [], places: [] };
+const fallback: MapLayers = {
+  islands: toIslands(land50),
+  rivers: [],
+  lakes: [],
+  borders: [],
+  places: [],
+  countries: [],
+};
 
 // Lapisan peta untuk tingkat detail yang diminta; render menunggu sampai dimuat.
 // continueRender baru dipanggil setelah lapisan tampil, agar komponen anak

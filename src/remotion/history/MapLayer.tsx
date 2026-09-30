@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { beatFrames, useSceneSpeech } from "./beats";
 import { MapBase } from "./MapBase";
-import { type Bounds, useMapLayers, visible } from "./mapData";
+import { type Bounds, findCountry, useMapLayers, visible } from "./mapData";
+import { BattleBurst, FrontLine, GLOBE_INTRO_FRAMES, GlobeIntro, UnitIcon } from "./mapExtras";
 import { sideColor, theme } from "./theme";
 import type { SceneMap } from "./types";
 
@@ -135,12 +136,27 @@ const HEAD_WIDTH = 60;
 
 // Bentuk panah gerak pasukan ala peta militer: badan melengkung yang melebar
 // ke arah kepala panah, tergambar sampai `progress`.
-function arrowShape(from: Point, to: Point, progress: number) {
-  const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
-  const control: Point = [
+function arrowControl(from: Point, to: Point): Point {
+  const length = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
+  return [
     (from[0] + to[0]) / 2 - ((to[1] - from[1]) / length) * length * 0.18,
     (from[1] + to[1]) / 2 + ((to[0] - from[0]) / length) * length * 0.18,
   ];
+}
+
+// Satuan militer bergerak di sepanjang panah dan berhenti sebelum titik tujuan,
+// agar tidak menumpuk dengan penanda, label, atau satuan lain di tujuan yang sama.
+const UNIT_STOP_PX = 80;
+function unitAlongArrow(from: Point, to: Point, progress: number): Point {
+  const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  const stop = Math.max(0, Math.min(0.93, 1 - UNIT_STOP_PX / Math.max(1, length)));
+  const { x, y } = quadratic(from, arrowControl(from, to), to, Math.min(progress, 1) * stop);
+  return [x, y];
+}
+
+function arrowShape(from: Point, to: Point, progress: number) {
+  const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  const control = arrowControl(from, to);
   // Ujung panah berhenti sedikit sebelum titik tujuan agar tidak menutupi penanda.
   const end = Math.min(progress, 1) * 0.93;
   const steps = 32;
@@ -233,7 +249,9 @@ ${rivers}
 // dari Natural Earth; zona kekuasaan muncul lebih dulu, lalu titik bergantian,
 // rute, dan panah gerak pasukan satu per satu sepanjang adegan.
 // Warna mengikuti pihak (sides): merah, biru, emas.
-export function MapLayer({ map }: { map: SceneMap }) {
+// `intro`: diawali globe yang berputar ke lokasi (peta pertama atau lokasi jauh
+// dari peta sebelumnya).
+export function MapLayer({ map, intro = false }: { map: SceneMap; intro?: boolean }) {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
 
@@ -288,10 +306,17 @@ export function MapLayer({ map }: { map: SceneMap }) {
           })
       : [];
 
+    // Negara yang disorot; nama yang tidak ditemukan dilewati.
+    const countries = (map.countries ?? []).map((c) => {
+      const found = layers ? findCountry(layers.countries, c.name) : undefined;
+      return found ? (path(found.feature) ?? "") : "";
+    });
+
     return {
       projected,
       zoneRadius,
       labels,
+      countries,
       land: layers ? collection(visible(layers.islands, view)) : "",
       lakes: layers ? collection(visible(layers.lakes, view).filter((l) => l.rank <= rankLimit)) : "",
       borders: layers ? collection(visible(layers.borders, view)) : "",
@@ -309,18 +334,26 @@ export function MapLayer({ map }: { map: SceneMap }) {
         placed,
       ),
     };
-  }, [box, layers, map.points, map.zones]);
+  }, [box, layers, map.points, map.zones, map.countries]);
   const { projected, zoneRadius, labels } = drawn;
   const shore = box.span > 40 ? 6 : box.span > 10 ? 12 : 20;
   const base = useMemo(() => (layers ? baseSvg(drawn, shore) : null), [layers, drawn, shore]);
 
   // Titik muncul saat narator menyebut namanya; panah menyusul satu per satu.
   const speech = useSceneSpeech();
-  const pointBeats = beatFrames(
-    speech,
-    map.points.map((p) => [p.cue, p.label]),
-    fps,
-    durationInFrames,
+  // Dengan globe pembuka, isi peta baru muncul setelah kamera tiba.
+  const introEnd = intro ? GLOBE_INTRO_FRAMES - 8 : 0;
+  const afterIntro = (beats: number[]) => {
+    let previous = -Infinity;
+    return beats.map((b) => (previous = Math.max(b, introEnd + 6, previous + 6)));
+  };
+  const pointBeats = afterIntro(
+    beatFrames(
+      speech,
+      map.points.map((p) => [p.cue, p.label]),
+      fps,
+      durationInFrames,
+    ),
   );
   const appear = (i: number) => spring({ frame: frame - pointBeats[i], fps, config: { damping: 14 } });
   const pointsDone = (pointBeats.at(-1) ?? 10) + 20;
@@ -364,6 +397,32 @@ export function MapLayer({ map }: { map: SceneMap }) {
       extrapolateRight: "clamp",
       easing: Easing.inOut(Easing.cubic),
     });
+  // Negara disorot saat namanya disebut; garis depan setelah titik-titiknya tampil.
+  const countryBeats = afterIntro(
+    beatFrames(
+      speech,
+      (map.countries ?? []).map((c) => [c.cue, c.name]),
+      fps,
+      durationInFrames,
+    ),
+  );
+  const frontPoints = (map.front?.points ?? []).filter((i) => projected[i]);
+  const frontReady = Math.max(introEnd, ...frontPoints.map((i) => pointBeats[i] + 10));
+  const frontBeat = Math.max(
+    frontReady,
+    beatFrames(speech, [[map.front?.cue]], fps, durationInFrames, { start: frontReady })[0] ?? frontReady,
+  );
+  const frontProgress = interpolate(frame, [frontBeat, frontBeat + 40], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.cubic),
+  });
+  // Satuan yang menjadi pangkal panah bergerak bersama ujung panah pertamanya.
+  const unitPosition = (i: number): Point => {
+    const k = arrows.findIndex((a) => a.from === i);
+    return k === -1 ? projected[i] : unitAlongArrow(projected[i], projected[arrows[k].to], arrowProgress(k));
+  };
+
   const pulseProgress = (i: number) => {
     const start = arrowBeats[i] + arrowDraw;
     return interpolate(frame, [start, start + 24], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -390,8 +449,9 @@ export function MapLayer({ map }: { map: SceneMap }) {
     const target: Point = [center[0] * 0.4 + event.point[0] * 0.6, center[1] * 0.4 + event.point[1] * 0.6];
     focus = [focus[0] + (target[0] - focus[0]) * t, focus[1] + (target[1] - focus[1]) * t];
   }
-  const scale = interpolate(frame, [0, durationInFrames], [1, CAMERA_ZOOM], {
+  const scale = interpolate(frame, [introEnd, durationInFrames], [1, CAMERA_ZOOM], {
     easing: Easing.inOut(Easing.quad),
+    extrapolateLeft: "clamp",
   });
   // Geser sejauh pembesaran mengizinkan, agar tepi peta tidak pernah terlihat.
   const clampPan = (value: number, size: number) =>
@@ -435,6 +495,23 @@ export function MapLayer({ map }: { map: SceneMap }) {
               </g>
             ))}
           </g>
+          {drawn.countries.map((d, i) => {
+            if (!d) return null;
+            const grow = spring({ frame: frame - countryBeats[i], fps, config: { damping: 200 } });
+            const color = sideColor(map.countries![i].side);
+            return (
+              <path
+                key={`country-${i}`}
+                d={d}
+                fill={color}
+                fillOpacity={0.42 * grow}
+                stroke={color}
+                strokeWidth={4}
+                strokeOpacity={grow}
+                strokeLinejoin="round"
+              />
+            );
+          })}
           {(map.zones ?? []).map((zone, i) => {
             const center = projected[zone.point];
             if (!center || !zoneRadius[i]) return null;
@@ -483,11 +560,30 @@ export function MapLayer({ map }: { map: SceneMap }) {
               progress={pulseProgress(i)}
             />
           ))}
+          <FrontLine points={frontPoints.map((i) => projected[i])} progress={frontProgress} />
+          {projected.map((at, i) =>
+            map.points[i].battle ? (
+              <BattleBurst
+                key={`battle-${i}`}
+                at={at}
+                frame={frame}
+                appear={spring({ frame: frame - pointBeats[i], fps, config: { damping: 200 } })}
+              />
+            ) : null,
+          )}
           {projected.map(([x, y], i) => {
             const s = appear(i);
+            const unit = map.points[i].unit;
             return (
               <g key={map.points[i].label + i} opacity={Math.min(1, s)}>
-                <circle cx={x} cy={y} r={14 * s} fill={sideColor(map.points[i].side)} stroke="#fff" strokeWidth={3} />
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={(unit ? 8 : 14) * s}
+                  fill={sideColor(map.points[i].side)}
+                  stroke="#fff"
+                  strokeWidth={3}
+                />
                 <text
                   x={labels[i].x}
                   y={labels[i].y}
@@ -504,6 +600,18 @@ export function MapLayer({ map }: { map: SceneMap }) {
                 </text>
               </g>
             );
+          })}
+          {projected.map((_, i) => {
+            const unit = map.points[i].unit;
+            return unit ? (
+              <UnitIcon
+                key={`unit-${i}`}
+                unit={unit}
+                side={map.points[i].side}
+                at={unitPosition(i)}
+                scale={Math.min(1, appear(i))}
+              />
+            ) : null;
           })}
         </g>
         <rect width={WIDTH} height={HEIGHT} fill="url(#map-vignette)" />
@@ -552,6 +660,12 @@ export function MapLayer({ map }: { map: SceneMap }) {
             </div>
           ))}
         </div>
+      )}
+      {intro && (
+        <GlobeIntro
+          center={[box.center, map.points.reduce((sum, p) => sum + p.lat, 0) / map.points.length]}
+          frame={frame}
+        />
       )}
     </AbsoluteFill>
   );

@@ -108,6 +108,12 @@ export const mapDataSchema = z.object({
       verified: z.boolean().optional().describe("Diisi sistem, jangan diisi"),
       side: z.number().int().optional().describe("Indeks pihak di sides bila titik milik salah satu pihak"),
       cue: cue(),
+      unit: z
+        .enum(["infantry", "cavalry", "armor", "artillery", "naval", "air", "hq"])
+        .optional()
+        .catch(undefined)
+        .describe("Jenis satuan militer bila titik adalah posisi pasukan; digambar sebagai simbol militer"),
+      battle: z.boolean().optional().describe("true bila titik adalah lokasi pertempuran atau bentrokan"),
     }),
     1,
     12,
@@ -139,6 +145,26 @@ export const mapDataSchema = z.object({
   )
     .optional()
     .describe("Wilayah kekuasaan atau area pengaruh berbentuk lingkaran"),
+  countries: list(
+    z.object({
+      name: z
+        .string()
+        .describe("Nama negara masa kini dalam bahasa Inggris, misalnya 'Indonesia', 'Russia', 'Ukraine'"),
+      side: z.number().int().describe("Indeks pihak di sides"),
+      cue: cue(),
+    }),
+    0,
+    10,
+  )
+    .optional()
+    .describe("Negara masa kini yang disorot dengan warna pihak, untuk konflik atau aliansi antarnegara"),
+  front: z
+    .object({
+      points: z.array(z.number().int()).describe("Indeks titik yang dilalui garis depan, berurutan (minimal 2)"),
+      cue: cue(),
+    })
+    .optional()
+    .describe("Garis depan atau garis pertahanan"),
 });
 export type MapData = z.infer<typeof mapDataSchema>;
 

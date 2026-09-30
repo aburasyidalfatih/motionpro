@@ -94,7 +94,10 @@ const GRAPHIC_TYPES_GUIDE = `- "title": kartu judul video (adegan terakhir pembu
   lat/lng yang benar, dan points[].place dengan nama tempat masa kini lengkap dengan wilayah dan negara (koordinat
   dicek ulang dengan nama itu di OpenStreetMap). Label titik sama dengan nama yang diucapkan narasi. Untuk konflik
   isi map.sides (nama pihak), points[].side, map.arrows (gerak pasukan/armada dari indeks titik ke indeks titik) dan
-  map.zones (wilayah kekuasaan, radiusKm) bila relevan.
+  map.zones (wilayah kekuasaan, radiusKm) bila relevan. Posisi pasukan: isi points[].unit (infantry, cavalry, armor,
+  artillery, naval, air, hq) agar digambar sebagai simbol militer yang bergerak mengikuti panahnya. Lokasi
+  pertempuran: points[].battle = true. Konflik atau aliansi antarnegara masa kini: map.countries (nama negara dalam
+  bahasa Inggris dan side). Garis depan atau garis pertahanan: map.front.points (indeks titik berurutan).
 - "timeline": kronologi beberapa peristiwa. Isi events (2–7 peristiwa: date singkat seperti "1825" atau "10 Nov",
   label maksimal 5 kata). onScreenText = judul timeline. Hanya satu tanggal? Jangan pakai "timeline": pakai
   "kinetic_text" dan isi timeline (penanda tanggal di pojok layar).

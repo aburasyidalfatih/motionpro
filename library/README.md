@@ -25,4 +25,19 @@ Awali nama file dengan jenisnya, misalnya `whoosh-1.mp3` (transisi geser, zoom, 
 
 Sumber yang disarankan: Pixabay Sound Effects, atau [Freesound](https://freesound.org) dengan lisensi CC0 atau CC BY saja. Jangan pakai CC BY-NC untuk channel yang dimonetisasi.
 
+Riser (`riser-1.mp3`, sekitar 2 detik, suara yang makin naik) diputar menjelang kartu bab dan berakhir tepat saat kartu muncul.
+
+## Suara latar suasana: `ambience/`
+
+Suara latar pelan di bawah narasi, dipilih dari suasana adegan dan bersilang-fade antarbagian:
+
+| Awalan file | Dipakai untuk suasana |
+| --- | --- |
+| `battle-` | Epik, tegang (pertempuran di kejauhan, derap pasukan) |
+| `wind-` | Tenang, penuh harapan |
+| `rain-` | Muram |
+| `night-` | Misterius |
+
+Contoh: `ambience/battle-1.mp3`, `ambience/wind-1.mp3`. File diulang (loop), jadi pilih rekaman yang bisa bersambung mulus. Sumber: Pixabay Sound Effects atau Freesound (CC0).
+
 File audio di folder ini tidak ikut di-commit ke Git (lihat `.gitignore`).

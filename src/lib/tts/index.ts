@@ -3,7 +3,7 @@ import { ApiError } from "@google/genai";
 import { fatalError, geminiClient } from "@/lib/ai/client";
 import { estimateDurationMs } from "@/lib/projects";
 import { storagePath } from "@/lib/storage";
-import { normalizeLoudness, speechBounds, tonePcm, trimEdgeNoise } from "./audio";
+import { normalizeLoudness, processVoice, speechBounds, tonePcm, trimEdgeNoise } from "./audio";
 
 import { DEFAULT_VOICE } from "./voices";
 
@@ -137,7 +137,8 @@ export async function synthesize(
   const model = ttsModel();
   const clean = (speech: Speech) => {
     const trimmed = trimEdgeNoise(speech.pcm, speech.sampleRate);
-    return { ...speech, pcm: normalizeLoudness(trimmed, speech.sampleRate) };
+    const voiced = processVoice(trimmed, speech.sampleRate);
+    return { ...speech, pcm: normalizeLoudness(voiced, speech.sampleRate) };
   };
   const generate = async (prompt: string, attempt: number) =>
     // Seed berbeda per percobaan: seed yang sama cenderung mengulang kesalahan yang sama.

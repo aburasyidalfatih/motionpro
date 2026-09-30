@@ -30,7 +30,8 @@ export const demoProps: HistoryVideoProps = {
   finishing: true,
   motionBlur: true,
   music: [],
-  sfx: { whoosh: [], impact: [], pop: [], paper: [] },
+  sfx: { whoosh: [], impact: [], pop: [], paper: [], riser: [] },
+  ambience: [],
   scenes: [
     scene("demo-title", 4500, "title", { onScreenText: "Pertempuran Surabaya" }),
     scene("demo-kinetic", 5500, "kinetic_text", {

@@ -93,7 +93,9 @@ export type HistoryVideoProps = {
   // Musik latar per bagian: trek mulai di adegan `fromScene` sampai bagian berikutnya.
   music: { src: string; fromScene: number }[];
   // Efek suara per jenis; beberapa file per jenis dipakai bergantian.
-  sfx: { whoosh: string[]; impact: string[]; pop: string[]; paper: string[] };
+  sfx: { whoosh: string[]; impact: string[]; pop: string[]; paper: string[]; riser: string[] };
+  // Suara latar suasana (angin, pertempuran di kejauhan, hujan) per rentang adegan.
+  ambience: { src: string; fromScene: number; toScene: number }[];
   subtitles: boolean;
   // Butiran film, grading, dan light leak (lihat finishing.tsx).
   finishing: boolean;

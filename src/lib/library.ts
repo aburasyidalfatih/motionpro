@@ -41,6 +41,39 @@ export async function listSfx() {
   return audioFiles(path.join(libraryRoot(), "sfx"));
 }
 
+// Suara latar suasana (library/ambience/<jenis>-*.mp3), misalnya battle-1.mp3.
+export async function listAmbience() {
+  return audioFiles(path.join(libraryRoot(), "ambience"));
+}
+
+// Jenis suara latar per suasana adegan.
+const AMBIENCE_FOR_MOOD: Record<string, string> = {
+  epic: "battle",
+  tense: "battle",
+  calm: "wind",
+  somber: "rain",
+  mysterious: "night",
+  hopeful: "wind",
+};
+
+// Suara latar per rentang adegan bersuasana sama. Adegan grafis tanpa lokasi
+// (kartu judul, statistik) tetap bersuara latar agar tidak hening tiba-tiba.
+export function ambiencePlan(files: string[], scenes: { mood: string | null }[]) {
+  const plan: { file: string; fromScene: number; toScene: number }[] = [];
+  scenes.forEach((scene, i) => {
+    const kind = AMBIENCE_FOR_MOOD[scene.mood ?? ""];
+    const candidates = kind ? files.filter((f) => f.toLowerCase().startsWith(kind)) : [];
+    const last = plan.at(-1);
+    if (candidates.length === 0) return;
+    if (last && last.toScene === i && candidates.includes(last.file)) {
+      last.toScene = i + 1;
+      return;
+    }
+    plan.push({ file: candidates[plan.length % candidates.length], fromScene: i, toScene: i + 1 });
+  });
+  return plan;
+}
+
 // Musik default: trek pertama dari suasana yang paling sering muncul di naskah,
 // atau trek pertama mana pun bila suasana itu belum punya musik.
 export function pickMusic(tracks: LibraryTrack[], sceneMoods: (string | null)[]) {

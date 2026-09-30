@@ -87,6 +87,41 @@ export function trimEdgeNoise(pcm: Buffer, sampleRate: number, threshold = 600) 
   return out;
 }
 
+// Olah suara narator seperti di studio siaran: high-pass 80 Hz membuang dengung
+// rendah, lalu kompresor halus meratakan suku kata yang terlalu keras atau
+// pelan. Kekerasan akhirnya diatur normalizeLoudness sesudahnya.
+export function processVoice(pcm: Buffer, sampleRate: number) {
+  const samples = pcm.length / 2;
+  const out = Buffer.alloc(pcm.length);
+
+  // Biquad high-pass (Butterworth, Q 0,707) pada 80 Hz.
+  const w = (2 * Math.PI * 80) / sampleRate;
+  const alpha = Math.sin(w) / (2 * Math.SQRT1_2);
+  const cos = Math.cos(w);
+  const a0 = 1 + alpha;
+  const [b0, b1, b2] = [(1 + cos) / 2 / a0, -(1 + cos) / a0, (1 + cos) / 2 / a0];
+  const [a1, a2] = [(-2 * cos) / a0, (1 - alpha) / a0];
+  let [x1, x2, y1, y2] = [0, 0, 0, 0];
+
+  // Kompresor: ambang -20 dBFS, rasio 3:1, attack 5 ms, release 80 ms.
+  const threshold = 32768 * 10 ** (-20 / 20);
+  const ratio = 3;
+  const attack = Math.exp(-1 / (sampleRate * 0.005));
+  const release = Math.exp(-1 / (sampleRate * 0.08));
+  let envelope = 0;
+
+  for (let i = 0; i < samples; i++) {
+    const x = pcm.readInt16LE(i * 2);
+    const y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+    [x2, x1, y2, y1] = [x1, x, y1, y];
+    const level = Math.abs(y);
+    envelope = level > envelope ? attack * envelope + (1 - attack) * level : release * envelope + (1 - release) * level;
+    const gain = envelope > threshold ? (threshold * (envelope / threshold) ** (1 / ratio)) / envelope : 1;
+    out.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(y * gain))), i * 2);
+  }
+  return out;
+}
+
 // Target kekerasan bagian bersuara (RMS ±-20 dBFS) dan batas puncak (±-1 dBFS).
 const TARGET_RMS = 3300;
 const PEAK_LIMIT = 29_000;

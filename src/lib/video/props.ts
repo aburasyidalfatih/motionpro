@@ -1,5 +1,5 @@
 import type { Asset, Project, Scene, SceneAsset, Voiceover } from "@/generated/prisma/client";
-import { libraryUrl, listMusic, listSfx, musicPlan } from "@/lib/library";
+import { ambiencePlan, libraryUrl, listAmbience, listMusic, listSfx, musicPlan } from "@/lib/library";
 import { fileUrl } from "@/lib/storage";
 import type { GraphicData, HistoryVideoProps, WordTiming } from "@/remotion/history/types";
 
@@ -28,7 +28,7 @@ async function pickSfx(urls: UrlResolver) {
   const files = await listSfx();
   const all = (prefix: string) =>
     files.filter((f) => f.toLowerCase().startsWith(prefix)).map((f) => urls.library(`sfx/${f}`));
-  return { whoosh: all("whoosh"), impact: all("impact"), pop: all("pop"), paper: all("paper") };
+  return { whoosh: all("whoosh"), impact: all("impact"), pop: all("pop"), paper: all("paper"), riser: all("riser") };
 }
 
 // Data lengkap template video sejarah untuk satu proyek.
@@ -50,6 +50,11 @@ export async function buildVideoProps(
         }))
       : [],
     sfx: await pickSfx(urls),
+    ambience: ambiencePlan(await listAmbience(), project.scenes).map((part) => ({
+      src: urls.library(`ambience/${part.file}`),
+      fromScene: part.fromScene,
+      toScene: part.toScene,
+    })),
     scenes: project.scenes.map((scene) => {
       const asset = scene.assets[0]?.asset;
       const graphic = (scene.graphicData ?? {}) as GraphicData;

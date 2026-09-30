@@ -38,6 +38,13 @@ import { CinematicParticles, FallbackLayer, FootageLayer, ImageLayer, Vignette }
 const MUSIC_VOLUME = 0.22;
 const MUSIC_DUCKED = 0.07;
 const DUCK_FADE_FRAMES = 10;
+// Suara latar suasana lebih pelan dari musik dan hanya sedikit mengecil saat narasi.
+const AMBIENCE_VOLUME = 0.12;
+const AMBIENCE_DUCKED = 0.07;
+const AMBIENCE_FADE_FRAMES = FPS;
+// Riser berdurasi sekitar 2 detik, berakhir tepat di potongan ke kartu bab.
+const RISER_FRAMES = 2 * FPS;
+
 // Pergantian musik antarbab: trek lama mengecil sementara trek baru membesar.
 const MUSIC_CROSSFADE_FRAMES = 2 * FPS;
 
@@ -203,7 +210,7 @@ function TransitionBlur({ enabled, children }: { enabled: boolean; children: Rea
 
 // Volume musik: turun saat narasi berbicara (ducking), fade in di awal dan
 // fade out di akhir video.
-function useMusicVolume(props: HistoryVideoProps) {
+function useDuckedVolume(props: HistoryVideoProps, full: number, ducked: number) {
   const { durationInFrames } = useVideoConfig();
   const ranges = speechRanges(props);
   return (frame: number) => {
@@ -215,7 +222,7 @@ function useMusicVolume(props: HistoryVideoProps) {
       }
       distance = Math.min(distance, frame < start ? start - frame : frame - end);
     }
-    const duck = interpolate(distance, [0, DUCK_FADE_FRAMES], [MUSIC_DUCKED, MUSIC_VOLUME], {
+    const duck = interpolate(distance, [0, DUCK_FADE_FRAMES], [ducked, full], {
       extrapolateRight: "clamp",
     });
     const edges = interpolate(frame, [0, 30, durationInFrames - 60, durationInFrames], [0, 1, 1, 0], {
@@ -238,7 +245,8 @@ export function HistoryVideo(props: HistoryVideoProps) {
   const timings = sceneTimings(props);
   const chapters = chapterNumbers(props.scenes);
   const intros = mapIntros(props.scenes);
-  const musicVolume = useMusicVolume(props);
+  const musicVolume = useDuckedVolume(props, MUSIC_VOLUME, MUSIC_DUCKED);
+  const ambienceVolume = useDuckedVolume(props, AMBIENCE_VOLUME, AMBIENCE_DUCKED);
   const endFade = interpolate(frame, [durationInFrames - END_HOLD_FRAMES, durationInFrames], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -256,6 +264,7 @@ export function HistoryVideo(props: HistoryVideoProps) {
     };
     const transition = i === 0 ? null : transitionFor(props.scenes, i);
     if (scene.visualType === "title") add("impact", pick(props.sfx.impact, i), start - lead, 0.5);
+    if (scene.visualType === "title" && i > 0) add("riser", pick(props.sfx.riser, i), start - lead - RISER_FRAMES, 0.3);
     else if (transition && transition !== "fade") add("whoosh", pick(props.sfx.whoosh, i), start - lead, 0.35);
     if (scene.visualType === "map") add("paper", pick(props.sfx.paper, i), start - lead + 4, 0.4);
     const beats = beatFrames({ words: scene.words, offset: lead }, popCues(scene), FPS, frames + lead + tail);
@@ -336,10 +345,39 @@ export function HistoryVideo(props: HistoryVideoProps) {
       })}
 
       {sfx.map((effect) => (
-        <Sequence key={effect.key} from={effect.from} durationInFrames={75} name="SFX">
+        // Riser dipotong tepat setelah kartu bab muncul; efek lain dibiarkan selesai.
+        <Sequence
+          key={effect.key}
+          from={effect.from}
+          durationInFrames={effect.key.startsWith("riser") ? RISER_FRAMES + 6 : 75}
+          name="SFX"
+        >
           <Html5Audio src={effect.src} volume={effect.volume} />
         </Sequence>
       ))}
+
+      {props.ambience.map((part, k) => {
+        const from = Math.max(0, (timings[part.fromScene]?.start ?? 0) - CROSSFADE_FRAMES);
+        const last = timings[part.toScene - 1];
+        const frames = (last ? last.start + last.frames : from) - from;
+        if (frames < 6) return null;
+        const fade = Math.min(AMBIENCE_FADE_FRAMES, Math.floor(frames / 3));
+        return (
+          <Sequence key={`ambience-${k}`} from={from} durationInFrames={frames} name="Suara latar">
+            <Html5Audio
+              src={part.src}
+              loop
+              volume={(f) =>
+                ambienceVolume(from + f) *
+                interpolate(f, [0, fade, frames - fade, frames], [0, 1, 1, 0], {
+                  extrapolateLeft: "clamp",
+                  extrapolateRight: "clamp",
+                })
+              }
+            />
+          </Sequence>
+        );
+      })}
 
       {music.map((part, k) => (
         <Sequence key={`music-${k}`} from={part.from} durationInFrames={part.frames} name={`Musik ${k + 1}`}>

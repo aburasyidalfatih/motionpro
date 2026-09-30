@@ -79,6 +79,11 @@ Tanpa API key, isi `AI_PROVIDER=fake` di `.env` untuk menguji alur aplikasi deng
 ## Render (Fase 3)
 
 - **Finishing:** butiran film, grading warna, vignette, light leak di kartu judul dan bab (`@remotion/effects`), dan motion blur saat transisi (`@remotion/motion-blur`, hanya saat render). Audio akhir dinormalkan ke -14 LUFS, standar YouTube. Pilih **1440p** di tab Render agar YouTube memakai codec yang lebih tajam. Video dengan kartu bab mendapat daftar **chapter YouTube** di galeri, siap disalin ke deskripsi.
+- **Peta:** globe 3D pembuka saat lokasi berpindah jauh, negara masa kini disorot dengan warna pihak, simbol satuan militer (MIL-STD-2525, `milsymbol`) yang bergerak mengikuti panah, lokasi bentrokan, dan garis depan.
+- **Ilustrasi AI:** adegan `illustration` (cold open, klimaks) dibuat Gemini (`GEMINI_IMAGE_MODEL`) di tahap aset; prompt bisa diedit dan gambar dibuat ulang di Storyboard. Pada gaya arsip, kartu profil tokoh memakai potret dari Wikimedia Commons.
+- **Suara:** suara latar per suasana (`library/ambience`), riser menjelang kartu bab, dan narator diolah seperti suara siaran (high-pass dan kompresor).
+- **Thumbnail dan end screen:** thumbnail 1280×720 dengan teks besar dari naskah (bisa diedit di tab Render); end screen 20 detik opsional untuk elemen akhir YouTube.
+- **QA:** tab Render menampilkan catatan ritme sebelum render (bagian yang diam terlalu lama, tipe visual berulang); tombol **Periksa dengan AI** di kartu video memeriksa satu frame per adegan dengan Gemini.
 - **Waktu per kata:** dihitung dari jeda nyata di audio voice over, dicocokkan dengan tanda baca. Untuk ketepatan per kata, pasang Whisper sekali: isi `WHISPER_MODEL="small"` di `.env`, jalankan `npm run whisper:setup`, restart worker, lalu klik **Hitung ulang waktu kata** di tab Audio untuk voice over yang sudah ada.
 - **Mengembangkan template dengan agen AI:** pasang skill resmi Remotion dengan `npx skills add remotion-dev/skills` (praktik terbaik Remotion untuk Claude Code, Cursor, dan sejenisnya).
 

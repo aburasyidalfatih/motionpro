@@ -49,6 +49,7 @@ enum JobKind {
   RENDER
   PUBLISH
   VOICE_SAMPLES
+  REVIEW
 }
 
 enum JobStatus {
@@ -254,6 +255,8 @@ model Video {
   srtKey       String?
   // Daftar chapter untuk deskripsi YouTube ("0:00 Pembuka" per baris), dari kartu bab.
   chapters     String?
+  // Hasil pemeriksaan AI atas frame video: { checkedAt, issues: [...] }.
+  review       Json?
   durationMs   Int
   sizeBytes    BigInt
   width        Int

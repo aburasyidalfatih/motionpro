@@ -15,6 +15,7 @@ import { audio } from "./handlers/audio";
 import { ping } from "./handlers/ping";
 import { render } from "./handlers/render";
 import { research } from "./handlers/research";
+import { review } from "./handlers/review";
 import { script } from "./handlers/script";
 import { voiceSamples } from "./handlers/voice-samples";
 import type { JobHandler } from "./types";
@@ -28,6 +29,7 @@ const handlers: Partial<Record<JobKind, JobHandler>> = {
   AUDIO: audio,
   RENDER: render,
   VOICE_SAMPLES: voiceSamples,
+  REVIEW: review,
 };
 
 // Render memakan hampir seluruh CPU, jadi default-nya satu job sekaligus.

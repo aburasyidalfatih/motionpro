@@ -344,6 +344,21 @@ export const assetRankingSchema = z.object({
 });
 export type AssetRanking = z.infer<typeof assetRankingSchema>;
 
+// Pemeriksaan frame video hasil render oleh AI (job REVIEW).
+export const frameReviewSchema = z.object({
+  issues: list(
+    z.object({
+      frame: z.number().int().describe("Nomor frame seperti di daftar"),
+      severity: z.enum(["tinggi", "sedang", "rendah"]).catch("sedang"),
+      problem: z.string().describe("Masalah yang terlihat, singkat dan spesifik"),
+      fix: z.string().describe("Saran perbaikan yang bisa dilakukan di editor adegan"),
+    }),
+    0,
+    40,
+  ),
+});
+export type FrameReview = z.infer<typeof frameReviewSchema>;
+
 // Batasan jumlah dan rentang membuat skema terlalu kompleks bagi Gemini
 // (error 400 INVALID_ARGUMENT), jadi tidak dikirim. Batasan itu tetap
 // diperiksa oleh zod saat jawaban divalidasi.

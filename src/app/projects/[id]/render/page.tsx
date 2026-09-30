@@ -10,6 +10,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { browserUrls, buildVideoProps, projectVideoInclude } from "@/lib/video/props";
 import { buildThumbnailProps } from "@/lib/video/thumbnail";
 import { saveThumbnailText, startRender } from "./actions";
+import { PacingCheck } from "./PacingCheck";
 import { ThumbnailPreview } from "./ThumbnailPreview";
 import { VideoPreview } from "./VideoPreview";
 
@@ -67,6 +68,8 @@ export default async function RenderPage({ params }: PageProps<"/projects/[id]/r
             .
           </p>
         )}
+
+        {scenes.length > 0 && <PacingCheck props={props} projectId={project.id} />}
 
         {scenes.length > 0 ? (
           <VideoPreview

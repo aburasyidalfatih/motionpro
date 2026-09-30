@@ -21,6 +21,7 @@ export const jobKindLabel: Record<JobKind, string> = {
   RENDER: "Render",
   PUBLISH: "Publish",
   VOICE_SAMPLES: "Contoh suara",
+  REVIEW: "Pemeriksaan AI",
 };
 
 export const visualTypeLabel: Record<string, string> = {

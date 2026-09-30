@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { Video } from "@/generated/prisma/client";
-import { deleteVideo } from "@/app/projects/[id]/render/actions";
+import { deleteVideo, startReview } from "@/app/projects/[id]/render/actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { formatDuration } from "@/lib/projects";
+import type { VideoReview } from "@/lib/video/review";
 import { fileUrl } from "@/lib/storage";
 
 function slug(text: string) {
@@ -24,6 +25,7 @@ function downloadUrl(key: string, name: string) {
 export function VideoCard({ video, topic, projectId }: { video: Video; topic: string; projectId?: string }) {
   const name = slug(topic);
   const sizeMb = (Number(video.sizeBytes) / 1_000_000).toFixed(1);
+  const review = video.review as VideoReview | null;
   return (
     <li className="space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
       <video
@@ -62,6 +64,16 @@ export function VideoCard({ video, topic, projectId }: { video: Video; topic: st
               SRT
             </a>
           )}
+          <form action={startReview.bind(null, video.id)}>
+            <SubmitButton
+              variant="secondary"
+              size="sm"
+              pendingText="Memulai..."
+              title="Gemini memeriksa satu frame per adegan: teks terpotong atau bertumpuk, layar kosong, salah ketik"
+            >
+              {video.review ? "Periksa ulang" : "Periksa dengan AI"}
+            </SubmitButton>
+          </form>
           <form action={deleteVideo.bind(null, video.id)}>
             <SubmitButton variant="danger" size="sm" pendingText="Menghapus...">
               Hapus
@@ -69,6 +81,31 @@ export function VideoCard({ video, topic, projectId }: { video: Video; topic: st
           </form>
         </div>
       </div>
+      {review && (
+        <details className="text-sm" open={review.issues.length > 0}>
+          <summary className="cursor-pointer text-zinc-600 dark:text-zinc-400">
+            Pemeriksaan AI: {review.issues.length === 0 ? "tidak ada masalah" : `${review.issues.length} catatan`}
+          </summary>
+          <ul className="mt-2 space-y-1.5">
+            {review.issues.map((issue, i) => (
+              <li key={i} className="text-xs">
+                <span
+                  className={
+                    issue.severity === "tinggi"
+                      ? "font-medium text-red-600"
+                      : issue.severity === "sedang"
+                        ? "font-medium text-amber-600"
+                        : "font-medium text-zinc-500"
+                  }
+                >
+                  Adegan {issue.scene + 1} ({formatDuration(issue.timeMs)}):
+                </span>{" "}
+                {issue.problem} <span className="text-zinc-500">→ {issue.fix}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {video.chapters && (
         <details className="text-sm">
           <summary className="cursor-pointer text-zinc-600 dark:text-zinc-400">

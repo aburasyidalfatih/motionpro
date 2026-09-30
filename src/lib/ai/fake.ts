@@ -103,6 +103,14 @@ export function createFakeAI(): ScriptAI {
       return { issues: [], scenes };
     },
 
+    // Mode tiruan: satu catatan contoh pada frame pertama.
+    async reviewFrames(_project, frames) {
+      await pause(200);
+      return frames.length
+        ? { issues: [{ frame: 0, severity: "rendah", problem: "Contoh catatan (mode tiruan)", fix: "Tidak perlu" }] }
+        : { issues: [] };
+    },
+
     // Mode tiruan: semua kandidat dianggap relevan, urutan tetap.
     async rankAssets(_project, scenes) {
       return { scenes: scenes.map((s, scene) => ({ scene, relevant: s.candidates.map((_, i) => i) })) };

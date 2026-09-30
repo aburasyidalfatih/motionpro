@@ -61,9 +61,14 @@ export type RenderJobInput = {
   endScreen?: boolean;
 };
 
-// Job untuk satu adegan tidak menandai proyek gagal dan tidak mengunci halaman.
+// Input job REVIEW: pemeriksaan AI atas satu video hasil render.
+export type ReviewJobInput = { videoId: string };
+
+// Job untuk satu adegan atau satu video (pemeriksaan) tidak menandai proyek
+// gagal dan tidak mengunci halaman.
 export function isSceneJob(input: unknown) {
-  return Boolean((input as { sceneId?: string } | null)?.sceneId);
+  const value = input as { sceneId?: string; videoId?: string } | null;
+  return Boolean(value?.sceneId || value?.videoId);
 }
 
 // Koneksi worker wajib memakai maxRetriesPerRequest: null (syarat BullMQ).

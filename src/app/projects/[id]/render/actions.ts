@@ -5,7 +5,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { hasActiveStageJob } from "@/lib/project-jobs";
-import { enqueueJob, type RenderJobInput } from "@/lib/queue";
+import { enqueueJob, type RenderJobInput, type ReviewJobInput } from "@/lib/queue";
 import { storagePath } from "@/lib/storage";
 
 const RENDERABLE = ["AUDIO_READY", "RENDERED"];
@@ -42,5 +42,19 @@ export async function deleteVideo(videoId: string) {
 export async function saveThumbnailText(projectId: string, formData: FormData) {
   const thumbnailText = String(formData.get("thumbnailText") ?? "").trim() || null;
   await db.project.update({ where: { id: projectId }, data: { thumbnailText } });
+  refresh();
+}
+
+// Pemeriksaan AI atas video hasil render (frame per adegan dengan Gemini vision).
+export async function startReview(videoId: string) {
+  const video = await db.video.findUnique({ where: { id: videoId } });
+  if (!video) return refresh();
+  const active = await db.jobRun.findFirst({
+    where: { kind: "REVIEW", projectId: video.projectId, status: { in: ["QUEUED", "RUNNING"] } },
+  });
+  if (!active) {
+    const input: ReviewJobInput = { videoId };
+    await enqueueJob("REVIEW", { projectId: video.projectId, input });
+  }
   refresh();
 }

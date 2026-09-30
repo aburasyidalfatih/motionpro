@@ -1,5 +1,8 @@
 import type { ScriptPart } from "./prompts";
-import type { AssetRanking, Brief, ChapterReview, Outline, ResearchPlan, SceneDraft } from "./schemas";
+import type { AssetRanking, Brief, ChapterReview, FrameReview, Outline, ResearchPlan, SceneDraft } from "./schemas";
+
+// Satu frame video hasil render untuk diperiksa AI.
+export type ReviewFrame = { image: Buffer; scene: number; visualType: string; narration: string };
 
 export type ProjectBrief = {
   topic: string;
@@ -61,4 +64,6 @@ export interface ScriptAI {
     instruction: string;
   }): Promise<SceneDraft>;
   rankAssets(project: ProjectBrief, scenes: RankingScene[]): Promise<AssetRanking>;
+  // Editor AI memeriksa frame hasil render: teks terpotong, bertumpuk, layar kosong, salah ketik.
+  reviewFrames(project: ProjectBrief, frames: ReviewFrame[]): Promise<FrameReview>;
 }

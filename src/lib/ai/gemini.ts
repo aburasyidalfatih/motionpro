@@ -9,6 +9,7 @@ import {
   planPrompt,
   rankAssetsPrompt,
   researchPrompt,
+  REVIEW_FRAMES_PROMPT,
   reviewPrompt,
   rewritePrompt,
   SYSTEM_PROMPT,
@@ -19,6 +20,7 @@ import {
   chapterReviewSchema,
   chapterScenesSchema,
   followUpSchema,
+  frameReviewSchema,
   outlineSchema,
   researchPlanSchema,
   sceneSchema,
@@ -109,5 +111,27 @@ export function createGeminiAI(): ScriptAI {
     rewriteScene: (input) => generateJson(sceneSchema, rewritePrompt(input), scriptModel),
 
     rankAssets: (project, scenes) => generateJson(assetRankingSchema, rankAssetsPrompt(project, scenes)),
+
+    async reviewFrames(project, frames) {
+      const parts = [
+        { text: `${REVIEW_FRAMES_PROMPT}\n\nVideo: "${project.topic}".` },
+        ...frames.flatMap((frame, i) => [
+          { text: `Frame ${i} (adegan ${frame.scene + 1}, tipe ${frame.visualType}). Narasi: ${frame.narration}` },
+          { inlineData: { mimeType: "image/jpeg", data: frame.image.toString("base64") } },
+        ]),
+      ];
+      const response = await generateWith(model, {
+        contents: [{ role: "user", parts }],
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          responseJsonSchema: toGeminiSchema(frameReviewSchema),
+        },
+      }).catch((err) => {
+        throw fatalError(err, model);
+      });
+      if (!response.text) throw new Error("Gemini tidak mengembalikan jawaban");
+      return frameReviewSchema.parse(JSON.parse(response.text));
+    },
   };
 }

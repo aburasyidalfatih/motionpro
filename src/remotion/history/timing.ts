@@ -11,7 +11,7 @@ export const msToFrames = (ms: number) => Math.max(1, Math.round((ms / 1000) * F
 
 export type SceneTiming = { start: number; frames: number };
 
-export function sceneTimings(props: Pick<HistoryVideoProps, "scenes">): SceneTiming[] {
+export function sceneTimings(props: { scenes: { durationMs: number }[] }): SceneTiming[] {
   let cursor = 0;
   return props.scenes.map((scene) => {
     const frames = msToFrames(scene.durationMs);

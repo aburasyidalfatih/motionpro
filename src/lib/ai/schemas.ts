@@ -297,6 +297,9 @@ export type Script = z.infer<typeof scriptSchema>;
 // ditulis per bab dari kerangka ini (lib/ai/script-pipeline.ts).
 export const outlineSchema = z.object({
   title: z.string().describe("Judul video yang memancing rasa penasaran"),
+  thumbnailText: z
+    .string()
+    .describe("Teks thumbnail 2–4 kata, provokatif dan berbeda dari judul, misalnya 'KOTA YANG TAK MENYERAH'"),
   hook: z
     .string()
     .describe(

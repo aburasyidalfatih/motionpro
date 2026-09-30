@@ -6,8 +6,11 @@ import { needsAsset } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
 import { formatDuration } from "@/lib/projects";
 import { isSceneJob } from "@/lib/queue";
+import { SubmitButton } from "@/components/SubmitButton";
 import { browserUrls, buildVideoProps, projectVideoInclude } from "@/lib/video/props";
-import { startRender } from "./actions";
+import { buildThumbnailProps } from "@/lib/video/thumbnail";
+import { saveThumbnailText, startRender } from "./actions";
+import { ThumbnailPreview } from "./ThumbnailPreview";
 import { VideoPreview } from "./VideoPreview";
 
 async function loadProject(id: string) {
@@ -76,6 +79,39 @@ export default async function RenderPage({ params }: PageProps<"/projects/[id]/r
           <p className="text-sm text-zinc-600 dark:text-zinc-400">Belum ada naskah.</p>
         )}
       </section>
+
+      {scenes.length > 0 && (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Thumbnail</h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Dibuat otomatis saat render dari adegan paling visual. Teks besar sebaiknya 2–4 kata dan berbeda dari
+              judul.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-[1fr_320px]">
+            <ThumbnailPreview props={buildThumbnailProps(props, project)} />
+            <form
+              action={saveThumbnailText.bind(null, project.id)}
+              key={project.thumbnailText ?? ""}
+              className="space-y-2"
+            >
+              <label className="block text-sm font-medium">
+                Teks thumbnail
+                <input
+                  name="thumbnailText"
+                  defaultValue={project.thumbnailText ?? ""}
+                  placeholder={props.title.split(/\s+/).slice(0, 4).join(" ")}
+                  className="mt-1 w-full rounded-md border border-zinc-300 bg-transparent px-2.5 py-1.5 text-sm dark:border-zinc-700"
+                />
+              </label>
+              <SubmitButton variant="secondary" size="sm" pendingText="Menyimpan...">
+                Simpan
+              </SubmitButton>
+            </form>
+          </div>
+        </section>
+      )}
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Hasil render</h2>

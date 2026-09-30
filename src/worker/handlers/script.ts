@@ -151,7 +151,7 @@ export const script: JobHandler = async ({ run, setProgress }) => {
     });
     await tx.project.update({
       where: { id: project.id },
-      data: { status: "SCRIPT_READY", failedStage: null },
+      data: { status: "SCRIPT_READY", failedStage: null, thumbnailText: result.outline.thumbnailText },
     });
   });
   // Adegan grafis tidak butuh aset, jadi proyek full grafis langsung "Aset siap".

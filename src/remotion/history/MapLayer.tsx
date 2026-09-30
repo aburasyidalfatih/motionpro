@@ -251,7 +251,8 @@ ${rivers}
 // Warna mengikuti pihak (sides): merah, biru, emas.
 // `intro`: diawali globe yang berputar ke lokasi (peta pertama atau lokasi jauh
 // dari peta sebelumnya).
-export function MapLayer({ map, intro = false }: { map: SceneMap; intro?: boolean }) {
+// `bare`: tanpa keterangan dan legenda (untuk latar thumbnail).
+export function MapLayer({ map, intro = false, bare = false }: { map: SceneMap; intro?: boolean; bare?: boolean }) {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
 
@@ -616,7 +617,7 @@ export function MapLayer({ map, intro = false }: { map: SceneMap; intro?: boolea
         </g>
         <rect width={WIDTH} height={HEIGHT} fill="url(#map-vignette)" />
       </svg>
-      {map.caption && (
+      {map.caption && !bare && (
         <div
           style={{
             position: "absolute",
@@ -636,7 +637,7 @@ export function MapLayer({ map, intro = false }: { map: SceneMap; intro?: boolea
           {map.caption}
         </div>
       )}
-      {sides.length > 0 && (
+      {sides.length > 0 && !bare && (
         <div
           style={{
             position: "absolute",

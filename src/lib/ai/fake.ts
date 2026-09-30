@@ -70,6 +70,7 @@ export function createFakeAI(): ScriptAI {
       const chapters = Math.max(2, Math.round(project.targetMinutes / 2));
       return {
         title: project.topic,
+        thumbnailText: "Kisah yang terlupakan",
         hook: `Momen paling dramatis dari ${project.topic}.`,
         chapters: Array.from({ length: chapters }, (_, i) => ({
           title: `Contoh bab ${i + 1}`,

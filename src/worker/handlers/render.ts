@@ -10,10 +10,10 @@ import { saveFile, storagePath } from "@/lib/storage";
 import { buildChapters } from "@/lib/video/chapters";
 import { masterLoudness } from "@/lib/video/master";
 import { buildVideoProps, projectVideoInclude } from "@/lib/video/props";
+import { buildThumbnailProps } from "@/lib/video/thumbnail";
 import { buildSrt } from "@/lib/video/srt";
 import { startStaticServer } from "@/lib/video/static-server";
 import type { RenderJobInput } from "@/lib/queue";
-import { sceneTimings } from "@/remotion/history/timing";
 import type { JobHandler } from "../types";
 
 const COMPOSITION_ID = "HistoryVideo";
@@ -106,22 +106,23 @@ export const render: JobHandler = async ({ run, setProgress }) => {
     if (process.env.RENDER_MASTERING !== "off") await masterLoudness(videoPath);
     await setProgress(95);
 
-    // Gambar mini dari tengah adegan pertama yang bukan kartu judul, atau adegan pertama.
-    const timings = sceneTimings(inputProps);
-    const thumbScene = Math.max(
-      0,
-      inputProps.scenes.findIndex((s) => s.visualType !== "title"),
-    );
-    const thumbFrame = timings[thumbScene] ? timings[thumbScene].start + Math.floor(timings[thumbScene].frames / 2) : 0;
+    // Thumbnail YouTube 1280×720: teks besar di atas adegan paling visual (Thumbnail.tsx).
+    const thumbProps = buildThumbnailProps(inputProps, project);
+    const thumbComposition = await selectComposition({
+      serveUrl,
+      id: "Thumbnail",
+      inputProps: thumbProps,
+      ...renderOptions(),
+    });
     await renderStill({
       ...renderOptions(),
       serveUrl,
-      composition,
-      inputProps: { ...inputProps, subtitles: false },
-      frame: thumbFrame,
+      composition: thumbComposition,
+      inputProps: thumbProps,
+      frame: thumbComposition.durationInFrames - 1,
       output: storagePath(`${base}.jpg`),
       imageFormat: "jpeg",
-      jpegQuality: 85,
+      jpegQuality: 90,
       scale: 2 / 3,
     });
     await saveFile(`${base}.srt`, Buffer.from(buildSrt(inputProps, composition.fps)));

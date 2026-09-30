@@ -36,3 +36,10 @@ export async function deleteVideo(videoId: string) {
   }
   refresh();
 }
+
+// Teks besar di thumbnail; kosong berarti memakai awal judul video.
+export async function saveThumbnailText(projectId: string, formData: FormData) {
+  const thumbnailText = String(formData.get("thumbnailText") ?? "").trim() || null;
+  await db.project.update({ where: { id: projectId }, data: { thumbnailText } });
+  refresh();
+}

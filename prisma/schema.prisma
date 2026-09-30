@@ -99,6 +99,8 @@ model Project {
   musicTrack      String?
   // Musik berganti mengikuti suasana tiap bab (lihat musicPlan di src/lib/library.ts).
   musicPerChapter Boolean       @default(true)
+  // Teks besar di thumbnail (2–4 kata), ditulis AI bersama kerangka naskah.
+  thumbnailText   String?
   aspectRatio     AspectRatio   @default(LANDSCAPE_16_9)
   mode            ProjectMode   @default(EDITOR)
   status          ProjectStatus @default(DRAFT)

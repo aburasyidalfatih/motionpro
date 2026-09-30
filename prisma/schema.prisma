@@ -295,3 +295,11 @@ model YoutubeUpload {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
+
+// Pengaturan aplikasi yang diisi dari halaman Pengaturan, misalnya API key.
+// Nilai di sini didahulukan daripada .env (lihat src/lib/settings.ts).
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

@@ -10,6 +10,7 @@ import {
   WORKER_HEARTBEAT_TTL_SECONDS,
   type PipelineJobData,
 } from "@/lib/queue";
+import { applySettings } from "@/lib/settings";
 import { assets } from "./handlers/assets";
 import { audio } from "./handlers/audio";
 import { ping } from "./handlers/ping";
@@ -48,6 +49,8 @@ const worker = new Worker<PipelineJobData>(
 
     const handler = handlers[run.kind];
     if (!handler) throw new UnrecoverableError(`Belum ada handler untuk job ${run.kind}`);
+    // API key dari halaman Pengaturan, agar key yang baru disimpan langsung terpakai.
+    await applySettings();
 
     await db.jobRun.update({
       where: { id: run.id },

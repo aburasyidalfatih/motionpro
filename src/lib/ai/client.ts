@@ -45,11 +45,18 @@ export type GeminiRequest = Omit<Parameters<GoogleGenAI["models"]["generateConte
 
 let client: GoogleGenAI | undefined;
 
+// Dipanggil saat API key diganti dari halaman Pengaturan.
+export function resetGeminiClient() {
+  client = undefined;
+}
+
 export function geminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    // Tidak ada gunanya dicoba ulang sampai .env diperbaiki.
-    throw new UnrecoverableError("GEMINI_API_KEY belum diisi di .env (buat di https://aistudio.google.com)");
+    // Tidak ada gunanya dicoba ulang sampai API key diisi.
+    throw new UnrecoverableError(
+      "GEMINI_API_KEY belum diisi. Isi di menu Pengaturan (buat key di https://aistudio.google.com)",
+    );
   }
   client ??= new GoogleGenAI({ apiKey });
   const ai = client;

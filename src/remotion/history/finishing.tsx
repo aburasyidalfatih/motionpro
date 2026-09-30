@@ -1,15 +1,6 @@
 import { lightLeak } from "@remotion/effects/light-leak";
-import { useEffect, useState } from "react";
-import {
-  AbsoluteFill,
-  continueRender,
-  delayRender,
-  interpolate,
-  random,
-  Solid,
-  useCurrentFrame,
-  useVideoConfig,
-} from "remotion";
+import { useSyncExternalStore } from "react";
+import { AbsoluteFill, interpolate, random, Solid, useCurrentFrame, useVideoConfig } from "remotion";
 
 // Lapisan akhir ("finishing") di atas seluruh video, seperti grading di
 // editor profesional: butiran film, vignette, dan kilatan cahaya (light leak)
@@ -37,19 +28,20 @@ function grainTiles() {
   });
 }
 
+let cachedTiles: string[] | undefined;
+const NO_TILES: string[] = [];
+const noSubscription = () => () => {};
+const clientTiles = () => (cachedTiles ??= grainTiles());
+const serverTiles = () => NO_TILES;
+
 // Butiran film yang berganti tiap frame: tekstur yang sama digeser acak, dengan
 // mode blend overlay sehingga hanya variasi butirannya yang terlihat. Jauh
 // lebih ringan daripada menghitung noise baru tiap frame.
 export function FilmGrain({ strength = 0.09 }: { strength?: number }) {
   const frame = useCurrentFrame();
-  // Tekstur dibuat setelah dipasang di browser (bukan saat render server
-  // Next.js, agar HTML server dan browser sama); render menunggu sampai siap.
-  const [tiles, setTiles] = useState<string[]>([]);
-  const [handle] = useState(() => delayRender("Membuat tekstur butiran film"));
-  useEffect(() => {
-    setTiles(grainTiles());
-    continueRender(handle);
-  }, [handle]);
+  // Tekstur hanya dibuat di browser: saat render server Next.js dan hydration
+  // hasilnya kosong, jadi HTML server dan browser sama.
+  const tiles = useSyncExternalStore(noSubscription, clientTiles, serverTiles);
   if (tiles.length === 0) return null;
   const x = Math.floor(random(`grain-x-${frame}`) * GRAIN_TILE);
   const y = Math.floor(random(`grain-y-${frame}`) * GRAIN_TILE);

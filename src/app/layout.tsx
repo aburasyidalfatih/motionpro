@@ -12,6 +12,7 @@ const nav = [
   { href: "/gallery", label: "Galeri" },
   { href: "/preview", label: "Pratinjau template" },
   { href: "/system", label: "Sistem" },
+  { href: "/settings", label: "Pengaturan" },
 ];
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

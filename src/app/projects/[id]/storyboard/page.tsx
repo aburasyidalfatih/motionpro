@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { SubmitButton } from "@/components/SubmitButton";
 import { pexelsEnabled } from "@/lib/assets";
-import { needsAsset, usesAsset } from "@/lib/ai/schemas";
+import { usesAsset } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
+import { applySettings } from "@/lib/settings";
 import { isSceneJob } from "@/lib/queue";
 import { startAssets } from "./actions";
 import { SceneAssets } from "./SceneAssets";
@@ -23,6 +24,8 @@ type ProjectData = NonNullable<Awaited<ReturnType<typeof loadProject>>>;
 
 export default async function StoryboardPage({ params }: PageProps<"/projects/[id]/storyboard">) {
   const { id } = await params;
+  // PEXELS_API_KEY bisa diisi dari halaman Pengaturan.
+  await applySettings();
   const project = await loadProject(id);
   if (!project) notFound();
   return (
@@ -116,8 +119,12 @@ function StoryboardBody({ project }: { project: ProjectData }) {
 
       {hasFootage && !pexelsEnabled() && (
         <p className="rounded-md border border-amber-300 p-3 text-sm text-amber-700 dark:border-amber-800 dark:text-amber-400">
-          PEXELS_API_KEY belum diisi, jadi adegan footage memakai gambar dari Wikimedia Commons. Buat API key gratis di
-          https://www.pexels.com/api untuk footage video.
+          PEXELS_API_KEY belum diisi, jadi adegan footage memakai gambar dari Wikimedia Commons. Isi API key gratis dari
+          Pexels di{" "}
+          <Link href="/settings" className="underline">
+            Pengaturan
+          </Link>{" "}
+          untuk footage video.
         </p>
       )}
 

@@ -57,8 +57,8 @@ Windows PowerShell: pakai `Copy-Item .env.example .env` untuk langkah 2, dan sel
 ## API key Gemini (Fase 1)
 
 1. Buat API key di https://aistudio.google.com (**Get API key** → **Create API key**).
-2. Isi `GEMINI_API_KEY` di `.env`. Model default `gemini-3.8-flash`; ganti lewat `GEMINI_MODEL` bila perlu.
-3. Restart `npm run dev:all`, lalu buka **Proyek → Proyek baru**.
+2. Buka menu **Pengaturan** di aplikasi, tempel key di kolom Gemini API key, lalu **Simpan** (key diuji otomatis dan langsung dipakai tanpa restart). `PEXELS_API_KEY` bisa diisi di halaman yang sama. Cara lama lewat `.env` tetap bisa; nilai di Pengaturan didahulukan.
+3. Buka **Proyek → Proyek baru**. Model default `gemini-3.8-flash`; ganti lewat `GEMINI_MODEL` di `.env` bila perlu.
 
 Periksa kualitas riset dan naskah untuk 5 topik uji tanpa lewat UI (gate Fase 1):
 

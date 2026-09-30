@@ -57,6 +57,7 @@ export async function buildVideoProps(
         id: scene.id,
         durationMs: scene.durationMs ?? 5000,
         visualType: scene.visualType,
+        mood: scene.mood,
         onScreenText: scene.onScreenText,
         narrationSrc: scene.voiceover ? urls.file(scene.voiceover.audioPath) : null,
         words: scene.voiceover ? (scene.voiceover.wordTimestamps as WordTiming[]) : [],

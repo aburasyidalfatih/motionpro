@@ -73,12 +73,19 @@ export const graphicVisualTypes = [
   "profile",
   "quote",
 ] as const;
-export const assetVisualTypes = ["painting", "archival_photo", "footage"] as const;
+// Gambar dari pihak ketiga (arsip, stok); dilarang pada gaya full grafis.
+export const thirdPartyVisualTypes = ["painting", "archival_photo", "footage"] as const;
+// Semua tipe yang butuh gambar atau video; ilustrasi dibuat AI, jadi boleh di gaya full grafis.
+export const assetVisualTypes = [...thirdPartyVisualTypes, "illustration"] as const;
 export const visualTypes = [...graphicVisualTypes, ...assetVisualTypes] as const;
 export type VisualType = (typeof visualTypes)[number];
 
 export function needsAsset(visualType: string) {
   return (assetVisualTypes as readonly string[]).includes(visualType);
+}
+
+export function isThirdPartyVisual(visualType: string) {
+  return (thirdPartyVisualTypes as readonly string[]).includes(visualType);
 }
 
 export const moods = ["epic", "tense", "calm", "somber", "hopeful", "mysterious"] as const;
@@ -231,6 +238,14 @@ export const profileSchema = z.object({
   facts: list(z.string().describe("Fakta singkat maksimal 8 kata"), 1, 3),
 });
 
+export const illustrationSchema = z.object({
+  prompt: z
+    .string()
+    .describe(
+      "Deskripsi visual dalam bahasa Inggris untuk lukisan AI: peristiwa, era, pakaian, senjata, tempat, cahaya; tanpa teks",
+    ),
+});
+
 export const quoteSchema = z.object({
   text: z.string(),
   source: z.string().describe("Siapa yang mengucapkan atau dari dokumen apa"),
@@ -247,6 +262,7 @@ export const graphicDataSchema = z.object({
   quote: quoteSchema.optional(),
   chart: chartSchema.optional(),
   profile: profileSchema.optional(),
+  illustration: illustrationSchema.optional(),
 });
 export type GraphicData = z.infer<typeof graphicDataSchema>;
 
@@ -267,6 +283,7 @@ export const sceneSchema = z.object({
   quote: lenient(quoteSchema).describe("Wajib bila visualType = quote"),
   chart: lenient(chartSchema).describe("Wajib bila visualType = chart (minimal 2 batang)"),
   profile: lenient(profileSchema).describe("Wajib bila visualType = profile"),
+  illustration: lenient(illustrationSchema).describe("Wajib bila visualType = illustration"),
 });
 export type SceneDraft = z.infer<typeof sceneSchema>;
 

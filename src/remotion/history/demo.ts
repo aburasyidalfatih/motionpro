@@ -13,6 +13,7 @@ function scene(id: string, durationMs: number, visualType: string, rest: Partial
     id,
     durationMs,
     visualType,
+    mood: null,
     onScreenText: null,
     narrationSrc: null,
     words: [],

@@ -1,5 +1,6 @@
 import type { Asset, Scene, SceneAsset } from "@/generated/prisma/client";
 import { SubmitButton } from "@/components/SubmitButton";
+import type { GraphicData } from "@/lib/ai/schemas";
 import { visualTypeLabel } from "@/lib/labels";
 import { fileUrl } from "@/lib/storage";
 import { searchSceneAssets, selectAsset } from "./actions";
@@ -23,6 +24,8 @@ function Thumb({ asset, className }: { asset: Asset; className: string }) {
 export function SceneAssets({ scene, index, busy }: { scene: SceneWithAssets; index: number; busy: boolean }) {
   const links = [...scene.assets].sort((a, b) => a.rank - b.rank);
   const selected = links.find((l) => l.selected)?.asset;
+  const illustration = scene.visualType === "illustration";
+  const prompt = ((scene.graphicData ?? {}) as GraphicData).illustration?.prompt ?? "";
 
   return (
     <li id={`adegan-${index + 1}`} className="grid gap-4 rounded-lg border border-zinc-200 p-4 md:grid-cols-[320px_1fr] dark:border-zinc-800">
@@ -92,17 +95,32 @@ export function SceneAssets({ scene, index, busy }: { scene: SceneWithAssets; in
           </div>
         )}
 
-        <form action={searchSceneAssets.bind(null, scene.id)} key={scene.keywords.join(",")} className="flex gap-2">
-          <input
-            name="query"
-            defaultValue={scene.keywords.join(", ")}
-            className="flex-1 rounded-md border border-zinc-300 bg-transparent px-2.5 py-1.5 text-sm dark:border-zinc-700"
-            placeholder="Kata kunci bahasa Inggris, pisahkan dengan koma"
-          />
-          <SubmitButton variant="secondary" size="sm" disabled={busy} pendingText="Mencari...">
-            Cari ulang
-          </SubmitButton>
-        </form>
+        {illustration ? (
+          <form action={searchSceneAssets.bind(null, scene.id)} key={prompt} className="flex flex-col gap-2">
+            <textarea
+              name="query"
+              defaultValue={prompt}
+              rows={3}
+              className="w-full rounded-md border border-zinc-300 bg-transparent px-2.5 py-1.5 text-sm dark:border-zinc-700"
+              placeholder="Deskripsi gambar dalam bahasa Inggris: peristiwa, era, tempat, cahaya"
+            />
+            <SubmitButton variant="secondary" size="sm" disabled={busy} pendingText="Membuat...">
+              {selected ? "Buat ulang gambar" : "Buat gambar"}
+            </SubmitButton>
+          </form>
+        ) : (
+          <form action={searchSceneAssets.bind(null, scene.id)} key={scene.keywords.join(",")} className="flex gap-2">
+            <input
+              name="query"
+              defaultValue={scene.keywords.join(", ")}
+              className="flex-1 rounded-md border border-zinc-300 bg-transparent px-2.5 py-1.5 text-sm dark:border-zinc-700"
+              placeholder="Kata kunci bahasa Inggris, pisahkan dengan koma"
+            />
+            <SubmitButton variant="secondary" size="sm" disabled={busy} pendingText="Mencari...">
+              Cari ulang
+            </SubmitButton>
+          </form>
+        )}
 
         <form
           action={`/api/scenes/${scene.id}/upload`}

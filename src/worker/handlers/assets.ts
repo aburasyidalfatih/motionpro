@@ -1,16 +1,19 @@
+import { randomUUID } from "node:crypto";
 import { UnrecoverableError } from "bullmq";
-import type { Scene } from "@/generated/prisma/client";
+import type { Project, Scene } from "@/generated/prisma/client";
 import { scriptAI } from "@/lib/ai";
-import { assetVisualTypes } from "@/lib/ai/schemas";
+import { generateIllustration, imageModel } from "@/lib/ai/image";
+import { thirdPartyVisualTypes, type GraphicData } from "@/lib/ai/schemas";
 import type { ProjectBrief } from "@/lib/ai/types";
 import { findCandidates } from "@/lib/assets";
-import { ensureLocal } from "@/lib/assets/download";
+import { ensureLocal, processImage } from "@/lib/assets/download";
 import type { AssetCandidate } from "@/lib/assets/types";
 import { mapLimit } from "@/lib/async";
 import { db } from "@/lib/db";
 import { recomputeStatus } from "@/lib/project-status";
 import { toProjectBrief } from "@/lib/projects";
 import type { AssetJobInput } from "@/lib/queue";
+import { saveFile } from "@/lib/storage";
 import type { JobHandler } from "../types";
 
 // Kandidat yang dinilai tidak relevan tetap disimpan (bisa dipilih manual),
@@ -100,6 +103,32 @@ async function selectFirstDownloadable(sceneId: string) {
   return false;
 }
 
+// Ilustrasi AI untuk adegan "illustration": dibuat dari prompt adegan (atau
+// narasinya), disimpan sebagai aset dan langsung dipilih. Ilustrasi lama tetap
+// ada sebagai kandidat, jadi pengguna bisa kembali ke versi sebelumnya.
+async function illustrateScene(scene: Scene, project: Project) {
+  const prompt = (scene.graphicData as GraphicData | null)?.illustration?.prompt || scene.narration;
+  const image = await processImage(await generateIllustration(prompt, project.topic));
+  const id = randomUUID();
+  const localPath = await saveFile(`assets/illustration-${id}.jpg`, image.data);
+  const asset = await db.asset.create({
+    data: {
+      kind: "IMAGE",
+      provider: "gemini",
+      providerId: id,
+      title: prompt.slice(0, 200),
+      license: `Dibuat AI (${imageModel()})`,
+      localPath,
+      width: image.width,
+      height: image.height,
+    },
+  });
+  await db.$transaction([
+    db.sceneAsset.updateMany({ where: { sceneId: scene.id }, data: { selected: false, rank: { increment: 1 } } }),
+    db.sceneAsset.create({ data: { sceneId: scene.id, assetId: asset.id, rank: 0, selected: true } }),
+  ]);
+}
+
 // F-13, F-14, F-15, F-17: pencarian, penilaian relevansi, cari ulang, dan unduhan.
 export const assets: JobHandler = async ({ run, setProgress }) => {
   if (!run.projectId) throw new UnrecoverableError("Job aset tanpa proyek");
@@ -117,6 +146,9 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
     if (input.downloadOnly) {
       const selected = scene.assets.find((a) => a.selected);
       if (selected) await ensureLocal(selected.asset);
+    } else if (scene.visualType === "illustration") {
+      // "Buat ulang gambar": prompt baru sudah disimpan ke adegan oleh halaman storyboard.
+      await illustrateScene(scene, project);
     } else {
       // Cari ulang: kandidat lama yang tidak terpilih diganti hasil baru.
       const queries = (input.query ?? "")
@@ -133,11 +165,29 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
     return { sceneId: scene.id };
   }
 
-  // Cari ulang semua: kandidat hasil pencarian dihapus; aset unggahan pengguna tetap.
+  // Cari ulang semua: kandidat hasil pencarian dihapus; aset unggahan pengguna
+  // dan ilustrasi AI tetap (ilustrasi dibuat ulang per adegan dari storyboard).
   if (input.all) {
     await db.sceneAsset.deleteMany({
-      where: { scene: { projectId: project.id }, asset: { provider: { not: "upload" } } },
+      where: { scene: { projectId: project.id }, asset: { provider: { notIn: ["upload", "gemini"] } } },
     });
+  }
+
+  // Ilustrasi AI untuk adegan "illustration" yang belum punya gambar. Kegagalan
+  // satu ilustrasi (misalnya ditolak kebijakan model) tidak menggagalkan job.
+  const toIllustrate = await db.scene.findMany({
+    where: { projectId: project.id, visualType: "illustration", assets: { none: {} } },
+    orderBy: { order: "asc" },
+  });
+  let illustrationFailures = 0;
+  for (const scene of toIllustrate) {
+    try {
+      await illustrateScene(scene, project);
+    } catch (err) {
+      if (err instanceof UnrecoverableError) throw err;
+      illustrationFailures++;
+      console.warn(`[ilustrasi] adegan ${scene.id}: ${(err as Error).message}`);
+    }
   }
 
   // Adegan lukisan/arsip/footage yang belum punya kandidat hasil pencarian.
@@ -145,7 +195,7 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
   const scenes = await db.scene.findMany({
     where: {
       projectId: project.id,
-      visualType: { in: [...assetVisualTypes] },
+      visualType: { in: [...thirdPartyVisualTypes] },
       assets: { none: { asset: { provider: { not: "upload" } } } },
     },
     include: { assets: { where: { selected: true } } },
@@ -185,5 +235,5 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
   });
 
   await recomputeStatus(project.id);
-  return { scenes: scenes.length, withoutAsset };
+  return { scenes: scenes.length, withoutAsset, illustrations: toIllustrate.length - illustrationFailures };
 };

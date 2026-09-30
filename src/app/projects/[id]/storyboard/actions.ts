@@ -2,9 +2,11 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import type { GraphicData } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
 import { hasActiveStageJob } from "@/lib/project-jobs";
 import { recomputeStatus } from "@/lib/project-status";
+import { asJson } from "@/lib/projects";
 import { findSceneOrRefresh } from "@/lib/scenes";
 import { enqueueJob, type AssetJobInput } from "@/lib/queue";
 
@@ -48,6 +50,20 @@ export async function searchSceneAssets(sceneId: string, formData: FormData) {
   const scene = await findSceneOrRefresh(sceneId);
   if (!scene) return;
   const query = String(formData.get("query") ?? "").trim();
+  if (scene.visualType === "illustration") {
+    // Ilustrasi AI: isian adalah prompt gambar, disimpan ke data grafis adegan.
+    const graphic = (scene.graphicData ?? {}) as GraphicData;
+    if (query) {
+      await db.scene.update({
+        where: { id: sceneId },
+        data: { graphicData: asJson({ ...graphic, illustration: { prompt: query } }) },
+      });
+    }
+    const input: AssetJobInput = { sceneId };
+    await enqueueJob("ASSETS", { projectId: scene.projectId, input });
+    refresh();
+    return;
+  }
   const keywords = query.split(",").map((k) => k.trim()).filter(Boolean);
   // Kata kunci baru disimpan ke adegan agar tetap tampil dan dipakai lagi nanti.
   if (keywords.length) await db.scene.update({ where: { id: sceneId }, data: { keywords } });

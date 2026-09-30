@@ -88,8 +88,8 @@ function StoryboardBody({ project }: { project: ProjectData }) {
       {graphicNote}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {withAsset} dari {assetScenes.length} adegan lukisan, arsip, dan footage punya aset. Klik gambar kecil untuk
-          mengganti aset, cari ulang dengan kata kunci lain, atau unggah aset sendiri.
+          {withAsset} dari {assetScenes.length} adegan lukisan, arsip, footage, dan ilustrasi AI punya gambar. Klik
+          gambar kecil untuk mengganti aset, cari ulang dengan kata kunci lain, atau unggah aset sendiri.
         </p>
         <div className="flex gap-2">
           {unsearched < assetScenes.length && (

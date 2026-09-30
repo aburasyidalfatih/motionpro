@@ -22,6 +22,7 @@ const GRAPHIC_KEYS = [
   "quote",
   "chart",
   "profile",
+  "illustration",
 ] as const;
 
 // Data grafis adegan dari jawaban Gemini; kunci yang kosong tidak disimpan.

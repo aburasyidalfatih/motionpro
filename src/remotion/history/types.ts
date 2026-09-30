@@ -78,6 +78,7 @@ export type SceneProps = {
   id: string;
   durationMs: number;
   visualType: string;
+  mood: string | null;
   onScreenText: string | null;
   narrationSrc: string | null;
   words: WordTiming[];

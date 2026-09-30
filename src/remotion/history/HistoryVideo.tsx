@@ -33,7 +33,7 @@ import {
   type TransitionKind,
 } from "./timing";
 import type { HistoryVideoProps, SceneProps } from "./types";
-import { FallbackLayer, FootageLayer, ImageLayer, Vignette } from "./visuals";
+import { CinematicParticles, FallbackLayer, FootageLayer, ImageLayer, Vignette } from "./visuals";
 
 const MUSIC_VOLUME = 0.22;
 const MUSIC_DUCKED = 0.07;
@@ -137,6 +137,9 @@ function SceneVisual({
     <AbsoluteFill style={{ overflow: "hidden", ...transitionStyle(transition, p) }}>
       {background}
       {photographic && <Vignette />}
+      {photographic && (scene.visualType === "illustration" || scene.visualType === "painting") && (
+        <CinematicParticles mood={scene.mood} seed={scene.id} />
+      )}
       {graphic && (
         <AbsoluteFill style={scene.visualType === "map" ? undefined : { transform: `scale(${drift})` }}>
           {graphic.layer}

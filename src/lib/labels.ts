@@ -36,6 +36,7 @@ export const visualTypeLabel: Record<string, string> = {
   painting: "Lukisan",
   archival_photo: "Foto arsip",
   footage: "Footage suasana",
+  illustration: "Ilustrasi AI",
 };
 
 export const styleOptions = [

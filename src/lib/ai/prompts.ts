@@ -111,7 +111,11 @@ const GRAPHIC_TYPES_GUIDE = `- "title": kartu judul video (adegan terakhir pembu
 - "profile": memperkenalkan tokoh penting saat pertama kali muncul. Isi profile.name, role, years (bila ada di
   brief), dan facts (1–3 fakta singkat dari brief).
 - "quote": kutipan asli tokoh atau dokumen yang ada di brief (bagian Kutipan asli). Isi quote.text dan
-  quote.source. Jangan mengarang kutipan.`;
+  quote.source. Jangan mengarang kutipan.
+- "illustration": lukisan sinematik buatan AI untuk momen paling dramatis yang tidak bisa digambarkan dengan
+  grafik (cold open, klimaks, detik-detik pertempuran). Isi illustration.prompt dalam bahasa Inggris: deskripsi
+  visual rinci (peristiwa, era, pakaian, senjata, kapal, tempat, cuaca, cahaya, sudut kamera). Gambarkan suasana,
+  pasukan, dan tempat; hindari wajah tokoh nyata dari dekat dan jangan meminta tulisan di gambar.`;
 
 const ARCHIVAL_TYPES_GUIDE = `- "painting": lukisan sejarah; "archival_photo": foto arsip (hanya setelah sekitar 1840);
   "footage": suasana (laut, hutan, kota, reruntuhan). Untuk ketiganya isi keywords dalam bahasa Inggris yang
@@ -135,7 +139,7 @@ function visualRules(graphicOnly: boolean) {
 - Satu adegan = 1–2 kalimat (sekitar 5–9 detik). Informasi baru berarti adegan baru dengan visual baru.
 - ${graphicOnly ? "Video ini FULL GRAFIS: hanya pakai visualType grafis, jangan pakai painting, archival_photo, atau footage." : "Campur adegan grafis dengan lukisan, foto arsip, dan footage; pakai grafis untuk peta, angka, kronologi, dan perbandingan."}
 - Jangan pakai visualType yang sama lebih dari 2 adegan berturut-turut; "kinetic_text" paling banyak sekitar 25%
-  adegan. Utamakan "map" untuk pergerakan dan lokasi, "stat"/"chart"/"comparison" untuk angka, "timeline" untuk
+  adegan; "illustration" hanya untuk momen puncak, paling banyak 1 per bab (pembuka boleh 1). Utamakan "map" untuk pergerakan dan lokasi, "stat"/"chart"/"comparison" untuk angka, "timeline" untuk
   kronologi, "profile" saat tokoh penting pertama kali muncul, "quote" untuk kutipan asli.
 - Isi "cue" pada setiap titik peta, panah, peristiwa, angka, batang grafik, dan baris perbandingan dengan kata atau
   frasa PERSIS dari narasi adegan itu saat elemen tersebut harus muncul di layar.

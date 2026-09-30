@@ -124,7 +124,7 @@ function sampleScene(project: ProjectBrief, i: number): SceneDraft {
   const cycle =
     project.style === "ARCHIVAL"
       ? ["map", "painting", "stat", "footage", "comparison", "profile"]
-      : ["kinetic_text", "map", "timeline", "stat", "chart", "comparison", "profile", "quote"];
+      : ["kinetic_text", "map", "timeline", "stat", "chart", "comparison", "profile", "quote", "illustration"];
   switch (cycle[(i - 1) % cycle.length]) {
     case "kinetic_text":
       return {
@@ -211,6 +211,13 @@ function sampleScene(project: ProjectBrief, i: number): SceneDraft {
         visualType: "quote",
         mood: "somber",
         quote: { text: "Contoh kutipan tokoh.", source: "Contoh sumber" },
+      };
+    case "illustration":
+      return {
+        ...base,
+        visualType: "illustration",
+        mood: "tense",
+        illustration: { prompt: "Contoh ilustrasi: kapal perang di pelabuhan saat fajar" },
       };
     case "footage":
       return { ...base, visualType: "footage", mood: "calm", keywords: ["ocean waves"] };

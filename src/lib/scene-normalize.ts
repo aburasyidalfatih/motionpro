@@ -1,4 +1,4 @@
-import { needsAsset, type GraphicData, type SceneDraft, type VisualType } from "@/lib/ai/schemas";
+import { isThirdPartyVisual, type GraphicData, type SceneDraft, type VisualType } from "@/lib/ai/schemas";
 
 export type VideoStyleName = "GRAPHIC" | "ARCHIVAL";
 
@@ -25,7 +25,7 @@ export function kineticFallback(draft: Pick<SceneDraft, "onScreenText" | "narrat
 // dan tipe grafis yang datanya tidak diisi Gemini diganti teks kinetik.
 export function normalizeScene<T extends SceneDraft>(draft: T, style: VideoStyleName): T {
   let visualType = draft.visualType;
-  if (style === "GRAPHIC" && needsAsset(visualType)) visualType = "kinetic_text";
+  if (style === "GRAPHIC" && isThirdPartyVisual(visualType)) visualType = "kinetic_text";
   const required = REQUIRED[visualType];
   if (required && !draft[required]) visualType = style === "ARCHIVAL" ? "painting" : "kinetic_text";
 

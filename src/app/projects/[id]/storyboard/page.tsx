@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { SubmitButton } from "@/components/SubmitButton";
 import { pexelsEnabled } from "@/lib/assets";
-import { needsAsset } from "@/lib/ai/schemas";
+import { needsAsset, usesAsset } from "@/lib/ai/schemas";
 import { db } from "@/lib/db";
 import { isSceneJob } from "@/lib/queue";
 import { startAssets } from "./actions";
@@ -52,7 +52,7 @@ function StoryboardBody({ project }: { project: ProjectData }) {
   // Hanya adegan lukisan, foto arsip, dan footage yang butuh aset; adegan grafis digambar template.
   const assetScenes = scenes
     .map((scene, index) => ({ scene, index }))
-    .filter(({ scene }) => needsAsset(scene.visualType));
+    .filter(({ scene }) => usesAsset(scene.visualType, project.style));
   const graphicCount = scenes.length - assetScenes.length;
   const withAsset = assetScenes.filter(({ scene }) => scene.assets.some((a) => a.selected)).length;
   const unsearched = assetScenes.filter(({ scene }) => !scene.assets.some((a) => a.asset.provider !== "upload")).length;
@@ -88,8 +88,8 @@ function StoryboardBody({ project }: { project: ProjectData }) {
       {graphicNote}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {withAsset} dari {assetScenes.length} adegan lukisan, arsip, footage, dan ilustrasi AI punya gambar. Klik
-          gambar kecil untuk mengganti aset, cari ulang dengan kata kunci lain, atau unggah aset sendiri.
+          {withAsset} dari {assetScenes.length} adegan lukisan, arsip, footage, ilustrasi AI, dan potret tokoh punya
+          gambar. Klik gambar kecil untuk mengganti aset, cari ulang dengan kata kunci lain, atau unggah aset sendiri.
         </p>
         <div className="flex gap-2">
           {unsearched < assetScenes.length && (

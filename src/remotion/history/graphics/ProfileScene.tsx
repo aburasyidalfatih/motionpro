@@ -1,4 +1,4 @@
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { useBeats } from "../beats";
 import { theme } from "../theme";
 import type { Profile } from "../types";
@@ -12,9 +12,10 @@ const initials = (name: string) =>
     .map((w) => w[0])
     .join("") || name.slice(0, 1).toUpperCase();
 
-// Profil tokoh bergaya berkas intelijen: lencana inisial dengan cincin yang
-// berputar, nama, peran, dan masa hidup, lalu fakta muncul saat disebut narator.
-export function ProfileScene({ profile }: { profile: Profile }) {
+// Profil tokoh bergaya berkas intelijen: lencana (potret dari arsip, atau
+// inisial) dengan cincin yang berputar, nama, peran, dan masa hidup, lalu
+// fakta muncul saat disebut narator.
+export function ProfileScene({ profile, portrait = null }: { profile: Profile; portrait?: string | null }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const enter = spring({ frame: frame - 4, fps, config: { damping: 200 } });
@@ -40,21 +41,37 @@ export function ProfileScene({ profile }: { profile: Profile }) {
           />
           <circle cx="210" cy="210" r="172" fill="rgba(10,16,22,0.85)" stroke={theme.gold} strokeWidth="6" />
         </svg>
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontFamily: theme.serif,
-            fontSize: 150,
-            fontWeight: 700,
-            color: theme.goldStrong,
-          }}
-        >
-          {initials(profile.name)}
-        </div>
+        {portrait ? (
+          <div style={{ position: "absolute", inset: 44, borderRadius: "50%", overflow: "hidden" }}>
+            <Img
+              src={portrait}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: "50% 20%",
+                filter: "sepia(0.35) contrast(1.05)",
+                transform: `scale(${interpolate(frame, [0, 300], [1.05, 1.15], { extrapolateRight: "clamp" })})`,
+              }}
+            />
+          </div>
+        ) : (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: theme.serif,
+              fontSize: 150,
+              fontWeight: 700,
+              color: theme.goldStrong,
+            }}
+          >
+            {initials(profile.name)}
+          </div>
+        )}
       </div>
 
       <div style={{ flex: 1, fontFamily: theme.sans, color: theme.ink }}>

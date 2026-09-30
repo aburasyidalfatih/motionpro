@@ -84,6 +84,12 @@ export function needsAsset(visualType: string) {
   return (assetVisualTypes as readonly string[]).includes(visualType);
 }
 
+// Adegan yang memakai gambar: tipe aset, dan profil tokoh pada gaya arsip
+// (potret tokoh dari arsip; opsional, tanpa potret kartu memakai inisial).
+export function usesAsset(visualType: string, style: "GRAPHIC" | "ARCHIVAL") {
+  return needsAsset(visualType) || (style === "ARCHIVAL" && visualType === "profile");
+}
+
 export function isThirdPartyVisual(visualType: string) {
   return (thirdPartyVisualTypes as readonly string[]).includes(visualType);
 }

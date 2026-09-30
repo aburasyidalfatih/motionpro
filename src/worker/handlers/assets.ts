@@ -103,6 +103,13 @@ async function selectFirstDownloadable(sceneId: string) {
   return false;
 }
 
+// Kata kunci pencarian: untuk profil tokoh, potret dari namanya.
+function searchQueries(scene: Scene) {
+  const name = (scene.graphicData as GraphicData | null)?.profile?.name;
+  if (scene.visualType === "profile" && name) return [`${name} portrait`, name, ...scene.keywords];
+  return scene.keywords;
+}
+
 // Ilustrasi AI untuk adegan "illustration": dibuat dari prompt adegan (atau
 // narasinya), disimpan sebagai aset dan langsung dipilih. Ilustrasi lama tetap
 // ada sebagai kandidat, jadi pengguna bisa kembali ke versi sebelumnya.
@@ -155,7 +162,7 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
         .split(",")
         .map((q) => q.trim())
         .filter(Boolean);
-      const candidates = await findCandidates(scene.visualType, queries.length ? queries : scene.keywords);
+      const candidates = await findCandidates(scene.visualType, queries.length ? queries : searchQueries(scene));
       const ranked = await rankCandidates(brief, [{ scene, candidates }]);
       await db.sceneAsset.deleteMany({ where: { sceneId: scene.id, selected: false } });
       await attachCandidates(scene.id, ranked.get(scene.id) ?? []);
@@ -190,12 +197,14 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
     }
   }
 
-  // Adegan lukisan/arsip/footage yang belum punya kandidat hasil pencarian.
-  // Adegan grafis digambar template, jadi tidak dicarikan aset.
+  // Adegan lukisan/arsip/footage (dan profil tokoh pada gaya arsip, untuk
+  // potretnya) yang belum punya kandidat hasil pencarian. Adegan grafis lain
+  // digambar template, jadi tidak dicarikan aset.
+  const searchTypes: string[] = [...thirdPartyVisualTypes, ...(project.style === "ARCHIVAL" ? ["profile"] : [])];
   const scenes = await db.scene.findMany({
     where: {
       projectId: project.id,
-      visualType: { in: [...thirdPartyVisualTypes] },
+      visualType: { in: searchTypes },
       assets: { none: { asset: { provider: { not: "upload" } } } },
     },
     include: { assets: { where: { selected: true } } },
@@ -208,7 +217,7 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
   const found = await mapLimit(scenes, 3, async (scene) => {
     let candidates: AssetCandidate[] = [];
     try {
-      candidates = await findCandidates(scene.visualType, scene.keywords);
+      candidates = await findCandidates(scene.visualType, searchQueries(scene));
     } catch (err) {
       failures.push((err as Error).message);
     }

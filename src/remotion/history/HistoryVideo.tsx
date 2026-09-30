@@ -74,7 +74,14 @@ function graphicFor(scene: SceneProps, mapIntro: boolean): Graphic | null {
     case "chart":
       return g.chart?.bars.length ? { layer: <ChartScene chart={g.chart} />, heading: true } : null;
     case "profile":
-      return g.profile ? { layer: <ProfileScene profile={g.profile} />, heading: false } : null;
+      return g.profile
+        ? {
+            layer: (
+              <ProfileScene profile={g.profile} portrait={scene.asset?.kind === "IMAGE" ? scene.asset.src : null} />
+            ),
+            heading: false,
+          }
+        : null;
     default:
       return null;
   }

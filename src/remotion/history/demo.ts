@@ -29,6 +29,7 @@ export const demoProps: HistoryVideoProps = {
   subtitles: true,
   finishing: true,
   motionBlur: true,
+  endScreen: false,
   music: [],
   sfx: { whoosh: [], impact: [], pop: [], paper: [], riser: [] },
   ambience: [],

@@ -35,7 +35,7 @@ async function pickSfx(urls: UrlResolver) {
 export async function buildVideoProps(
   project: ProjectForVideo,
   urls: UrlResolver,
-  options: { subtitles: boolean; motionBlur?: boolean; finishing?: boolean },
+  options: { subtitles: boolean; motionBlur?: boolean; finishing?: boolean; endScreen?: boolean },
 ): Promise<HistoryVideoProps> {
   return {
     style: project.style,
@@ -43,6 +43,7 @@ export async function buildVideoProps(
     subtitles: options.subtitles,
     finishing: options.finishing ?? true,
     motionBlur: options.motionBlur ?? false,
+    endScreen: options.endScreen ?? false,
     music: project.musicTrack
       ? musicPlan(project.musicTrack, project.musicPerChapter ? await listMusic() : [], project.scenes).map((part) => ({
           src: urls.library(`music/${part.track}`),

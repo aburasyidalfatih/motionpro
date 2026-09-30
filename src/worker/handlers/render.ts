@@ -67,6 +67,7 @@ export const render: JobHandler = async ({ run, setProgress }) => {
   try {
     const inputProps = await buildVideoProps(project, server.urls, {
       subtitles: input.subtitles ?? true,
+      endScreen: input.endScreen ?? false,
       // Motion blur menambah waktu render sekitar 20–40%; RENDER_MOTION_BLUR=off mematikannya.
       motionBlur: process.env.RENDER_MOTION_BLUR !== "off",
       finishing: process.env.RENDER_FINISHING !== "off",

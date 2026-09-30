@@ -102,4 +102,6 @@ export type HistoryVideoProps = {
   // Motion blur saat transisi; menambah waktu render, hanya aktif saat render
   // atau di Chrome dengan HTML-in-canvas.
   motionBlur: boolean;
+  // End screen 20 detik untuk elemen akhir YouTube (video berikutnya, subscribe).
+  endScreen: boolean;
 };

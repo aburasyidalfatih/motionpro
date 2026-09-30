@@ -22,7 +22,8 @@ export function VideoPreview({
   busy: boolean;
 }) {
   const [subtitles, setSubtitles] = useState(props.subtitles);
-  const inputProps = { ...props, subtitles };
+  const [endScreen, setEndScreen] = useState(props.endScreen);
+  const inputProps = { ...props, subtitles, endScreen };
 
   return (
     <div className="space-y-4">
@@ -48,6 +49,16 @@ export function VideoPreview({
             className="h-4 w-4"
           />
           Subtitle ditanam di video
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="endScreen"
+            checked={endScreen}
+            onChange={(e) => setEndScreen(e.target.checked)}
+            className="h-4 w-4"
+          />
+          End screen 20 detik (untuk elemen akhir YouTube)
         </label>
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-sm">

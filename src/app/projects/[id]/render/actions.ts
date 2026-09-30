@@ -20,6 +20,7 @@ export async function startRender(projectId: string, formData?: FormData) {
   const input: RenderJobInput = {
     subtitles: formData ? formData.get("subtitles") === "on" : true,
     resolution: formData?.get("resolution") === "1440p" ? "1440p" : "1080p",
+    endScreen: formData?.get("endScreen") === "on",
   };
   await db.project.update({ where: { id: projectId }, data: { status: "RENDERING", failedStage: null } });
   await enqueueJob("RENDER", { projectId, input });

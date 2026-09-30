@@ -58,6 +58,7 @@ export type RenderJobInput = {
   // 1440p: YouTube memakai codec yang lebih baik (VP9) untuk video 1440p ke atas,
   // sehingga hasilnya lebih tajam walau ditonton di 1080p. Render lebih lama.
   resolution?: "1080p" | "1440p";
+  endScreen?: boolean;
 };
 
 // Job untuk satu adegan tidak menandai proyek gagal dan tidak mengunci halaman.

@@ -20,10 +20,12 @@ import { QuoteScene } from "./graphics/QuoteScene";
 import { StatScene } from "./graphics/StatScene";
 import { TimelineScene } from "./graphics/TimelineScene";
 import { MapLayer } from "./MapLayer";
+import { EndScreen } from "./EndScreen";
 import { ChapterOverlay, LabelOverlay, Subtitles, TimelineBadge, TitleOverlay } from "./overlays";
 import { theme } from "./theme";
 import {
   chapterNumbers,
+  contentFrames,
   CROSSFADE_FRAMES,
   END_HOLD_FRAMES,
   FPS,
@@ -247,7 +249,8 @@ export function HistoryVideo(props: HistoryVideoProps) {
   const intros = mapIntros(props.scenes);
   const musicVolume = useDuckedVolume(props, MUSIC_VOLUME, MUSIC_DUCKED);
   const ambienceVolume = useDuckedVolume(props, AMBIENCE_VOLUME, AMBIENCE_DUCKED);
-  const endFade = interpolate(frame, [durationInFrames - END_HOLD_FRAMES, durationInFrames], [1, 0], {
+  const contentEnd = contentFrames(props);
+  const endFade = interpolate(frame, [contentEnd - END_HOLD_FRAMES, contentEnd], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -313,6 +316,12 @@ export function HistoryVideo(props: HistoryVideoProps) {
           );
         })}
       </AbsoluteFill>
+
+      {props.endScreen && (
+        <Sequence from={contentEnd} name="End screen">
+          <EndScreen title={props.title} />
+        </Sequence>
+      )}
 
       {props.finishing && (
         <>

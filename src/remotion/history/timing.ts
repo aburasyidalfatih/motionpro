@@ -21,10 +21,18 @@ export function sceneTimings(props: Pick<HistoryVideoProps, "scenes">): SceneTim
   });
 }
 
-export function totalFrames(props: Pick<HistoryVideoProps, "scenes">) {
+// End screen YouTube (20 detik) setelah isi video, bila diaktifkan.
+export const END_SCREEN_FRAMES = 20 * FPS;
+
+// Akhir isi video (adegan terakhir ditambah jeda fade), sebelum end screen.
+export function contentFrames(props: Pick<HistoryVideoProps, "scenes">) {
   const timings = sceneTimings(props);
   const last = timings.at(-1);
   return (last ? last.start + last.frames : FPS) + END_HOLD_FRAMES;
+}
+
+export function totalFrames(props: Pick<HistoryVideoProps, "scenes"> & { endScreen?: boolean }) {
+  return contentFrames(props) + (props.endScreen ? END_SCREEN_FRAMES : 0);
 }
 
 // Rentang bicara global (dalam frame), untuk menurunkan volume musik saat narasi.

@@ -22,25 +22,20 @@ export async function startAssets(projectId: string, all = false) {
   redirect(`/projects/${projectId}/storyboard`);
 }
 
-// F-15: memilih kandidat lain. Aset yang belum ada di penyimpanan lokal diunduh worker.
+// F-15: memilih kandidat lain. Worker mengunduhnya bila perlu dan menganalisisnya.
 export async function selectAsset(sceneId: string, assetId: string) {
   const scene = await findSceneOrRefresh(sceneId);
   if (!scene) return;
   // Kandidat bisa sudah diganti oleh "Cari ulang" sebelum halaman dimuat ulang.
-  const link = await db.sceneAsset.findUnique({
-    where: { sceneId_assetId: { sceneId, assetId } },
-    include: { asset: true },
-  });
+  const link = await db.sceneAsset.findUnique({ where: { sceneId_assetId: { sceneId, assetId } } });
   if (!link) return refresh();
-  const { asset } = link;
   await db.$transaction([
     db.sceneAsset.updateMany({ where: { sceneId }, data: { selected: false } }),
     db.sceneAsset.update({ where: { sceneId_assetId: { sceneId, assetId } }, data: { selected: true } }),
   ]);
-  if (!asset.localPath) {
-    const input: AssetJobInput = { sceneId, downloadOnly: true };
-    await enqueueJob("ASSETS", { projectId: scene.projectId, input });
-  }
+  // Diunduh bila belum ada, lalu dianalisis (fokus kamera dan sorotan) oleh worker.
+  const input: AssetJobInput = { sceneId, downloadOnly: true };
+  await enqueueJob("ASSETS", { projectId: scene.projectId, input });
   await recomputeStatus(scene.projectId);
   refresh();
 }

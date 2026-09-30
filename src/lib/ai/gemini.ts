@@ -10,6 +10,7 @@ import {
   rankAssetsPrompt,
   researchPrompt,
   REVIEW_FRAMES_PROMPT,
+  ANALYZE_IMAGE_PROMPT,
   reviewPrompt,
   rewritePrompt,
   SYSTEM_PROMPT,
@@ -21,6 +22,7 @@ import {
   chapterScenesSchema,
   followUpSchema,
   frameReviewSchema,
+  imageAnalysisSchema,
   outlineSchema,
   researchPlanSchema,
   sceneSchema,
@@ -67,6 +69,25 @@ export function createGeminiAI(): ScriptAI {
     return schema.parse(JSON.parse(text));
   }
 
+  type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
+  const jpeg = (image: Buffer): Part => ({ inlineData: { mimeType: "image/jpeg", data: image.toString("base64") } });
+
+  // Permintaan JSON dengan teks dan gambar (Gemini vision).
+  async function generateJsonParts<T>(schema: z.ZodType<T>, parts: Part[]): Promise<T> {
+    const response = await generateWith(model, {
+      contents: [{ role: "user", parts }],
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+        responseJsonSchema: toGeminiSchema(schema),
+      },
+    }).catch((err) => {
+      throw fatalError(err, model);
+    });
+    if (!response.text) throw new Error("Gemini tidak mengembalikan jawaban");
+    return schema.parse(JSON.parse(response.text));
+  }
+
   return {
     planResearch: (project) => generateJson(researchPlanSchema, planPrompt(project)),
 
@@ -110,28 +131,33 @@ export function createGeminiAI(): ScriptAI {
 
     rewriteScene: (input) => generateJson(sceneSchema, rewritePrompt(input), scriptModel),
 
-    rankAssets: (project, scenes) => generateJson(assetRankingSchema, rankAssetsPrompt(project, scenes)),
-
-    async reviewFrames(project, frames) {
-      const parts = [
-        { text: `${REVIEW_FRAMES_PROMPT}\n\nVideo: "${project.topic}".` },
-        ...frames.flatMap((frame, i) => [
-          { text: `Frame ${i} (adegan ${frame.scene + 1}, tipe ${frame.visualType}). Narasi: ${frame.narration}` },
-          { inlineData: { mimeType: "image/jpeg", data: frame.image.toString("base64") } },
-        ]),
-      ];
-      const response = await generateWith(model, {
-        contents: [{ role: "user", parts }],
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          responseMimeType: "application/json",
-          responseJsonSchema: toGeminiSchema(frameReviewSchema),
-        },
-      }).catch((err) => {
-        throw fatalError(err, model);
-      });
-      if (!response.text) throw new Error("Gemini tidak mengembalikan jawaban");
-      return frameReviewSchema.parse(JSON.parse(response.text));
+    // Dengan gambar kecil kandidat, Gemini menilai isi gambarnya (vision); tanpa
+    // gambar, hanya dari judul file.
+    rankAssets(project, scenes) {
+      const images = scenes.flatMap((scene, i) =>
+        scene.candidates.flatMap((c, j): Part[] =>
+          c.image ? [{ text: `Gambar kecil adegan ${i}, kandidat [${j}]:` }, jpeg(c.image)] : [],
+        ),
+      );
+      if (images.length === 0) return generateJson(assetRankingSchema, rankAssetsPrompt(project, scenes));
+      return generateJsonParts(assetRankingSchema, [{ text: rankAssetsPrompt(project, scenes) }, ...images]);
     },
+
+    analyzeImage: (project, input) =>
+      generateJsonParts(imageAnalysisSchema, [
+        {
+          text: `${ANALYZE_IMAGE_PROMPT}\n\nVideo: "${project.topic}". Tipe adegan: ${input.visualType}.\nNarasi: ${input.narration}`,
+        },
+        jpeg(input.image),
+      ]),
+
+    reviewFrames: (project, frames) =>
+      generateJsonParts(frameReviewSchema, [
+        { text: `${REVIEW_FRAMES_PROMPT}\n\nVideo: "${project.topic}".` },
+        ...frames.flatMap((frame, i): Part[] => [
+          { text: `Frame ${i} (adegan ${frame.scene + 1}, tipe ${frame.visualType}). Narasi: ${frame.narration}` },
+          jpeg(frame.image),
+        ]),
+      ]),
   };
 }

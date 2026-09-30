@@ -350,6 +350,29 @@ export const assetRankingSchema = z.object({
 });
 export type AssetRanking = z.infer<typeof assetRankingSchema>;
 
+// Kotak dalam format bawaan Gemini: [ymin, xmin, ymax, xmax], skala 0–1000.
+const box2d = z
+  .array(z.number())
+  .describe("Kotak [ymin, xmin, ymax, xmax] dalam skala 0–1000 terhadap ukuran gambar");
+
+// Analisis gambar terpilih untuk kamera dan sorotan (job ASSETS): subjek utama
+// yang didekati kamera, dan subjek yang disebut narasi untuk diberi sorotan.
+export const imageAnalysisSchema = z.object({
+  focus: box2d.describe("Subjek utama gambar, tempat kamera mendekat"),
+  subjects: list(
+    z.object({
+      label: z.string().describe("Nama singkat yang ditulis di layar, maksimal 4 kata"),
+      cue: z.string().describe("Kata atau frasa PERSIS dari narasi saat subjek ini disebut"),
+      box_2d: box2d,
+    }),
+    0,
+    3,
+  ),
+  monochrome: z.boolean().describe("true bila gambar hitam-putih atau sepia"),
+  distracting: z.boolean().describe("true bila ada tulisan, watermark, bingkai, atau keterangan yang mengganggu"),
+});
+export type ImageAnalysisDraft = z.infer<typeof imageAnalysisSchema>;
+
 // Pemeriksaan frame video hasil render oleh AI (job REVIEW).
 export const frameReviewSchema = z.object({
   issues: list(

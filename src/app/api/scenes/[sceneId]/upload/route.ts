@@ -3,6 +3,7 @@ import path from "node:path";
 import { processImage } from "@/lib/assets/download";
 import { db } from "@/lib/db";
 import { recomputeStatus } from "@/lib/project-status";
+import { enqueueJob, type AssetJobInput } from "@/lib/queue";
 import { saveFile } from "@/lib/storage";
 
 const MAX_BYTES = 500 * 1024 * 1024;
@@ -52,5 +53,10 @@ export async function POST(request: Request, { params }: RouteContext<"/api/scen
     db.sceneAsset.create({ data: { sceneId, assetId: asset.id, rank: -1, selected: true } }),
   ]);
   await recomputeStatus(scene.projectId);
+  // Gambar unggahan juga dianalisis worker untuk fokus kamera dan sorotan.
+  if (!isVideo) {
+    const input: AssetJobInput = { sceneId, downloadOnly: true };
+    await enqueueJob("ASSETS", { projectId: scene.projectId, input });
+  }
   return Response.redirect(back, 303);
 }

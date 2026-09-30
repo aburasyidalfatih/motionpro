@@ -1,5 +1,14 @@
 import type { ScriptPart } from "./prompts";
-import type { AssetRanking, Brief, ChapterReview, FrameReview, Outline, ResearchPlan, SceneDraft } from "./schemas";
+import type {
+  AssetRanking,
+  Brief,
+  ChapterReview,
+  FrameReview,
+  ImageAnalysisDraft,
+  Outline,
+  ResearchPlan,
+  SceneDraft,
+} from "./schemas";
 
 // Satu frame video hasil render untuk diperiksa AI.
 export type ReviewFrame = { image: Buffer; scene: number; visualType: string; narration: string };
@@ -29,8 +38,12 @@ export type NumberedSource = SourceRef & { position: number };
 export type RankingScene = {
   narration: string;
   visualType: string;
-  candidates: { title: string; provider: string; kind: string }[];
+  // `image`: gambar kecil kandidat (JPEG) agar Gemini menilai isinya, bukan hanya judulnya.
+  candidates: { title: string; provider: string; kind: string; image?: Buffer }[];
 };
+
+// Gambar terpilih satu adegan untuk dianalisis (fokus kamera dan sorotan).
+export type ImageToAnalyze = { narration: string; visualType: string; image: Buffer };
 
 export type ChapterInput = {
   project: ProjectBrief;
@@ -64,6 +77,8 @@ export interface ScriptAI {
     instruction: string;
   }): Promise<SceneDraft>;
   rankAssets(project: ProjectBrief, scenes: RankingScene[]): Promise<AssetRanking>;
+  // Gemini vision: subjek utama dan subjek yang disebut narasi pada gambar terpilih.
+  analyzeImage(project: ProjectBrief, input: ImageToAnalyze): Promise<ImageAnalysisDraft>;
   // Editor AI memeriksa frame hasil render: teks terpotong, bertumpuk, layar kosong, salah ketik.
   reviewFrames(project: ProjectBrief, frames: ReviewFrame[]): Promise<FrameReview>;
 }

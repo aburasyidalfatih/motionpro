@@ -38,6 +38,10 @@ function findCue(words: string[], cue: string[], from: number) {
   return -1;
 }
 
+// Rentang tempat elemen tanpa penanda dibagi rata. waitForCue: elemen pertama
+// tetap menunggu kata penandanya (sorotan foto), tidak dipaksa muncul di awal.
+export type BeatRange = { start?: number; end?: number; waitForCue?: boolean };
+
 // Elemen tampil sedikit sebelum kata diucapkan agar mata sempat menangkapnya.
 const LEAD_FRAMES = 4;
 const MIN_GAP_FRAMES = 6;
@@ -50,7 +54,7 @@ export function beatFrames(
   cues: Cue[],
   fps: number,
   durationInFrames: number,
-  range?: { start?: number; end?: number },
+  range?: BeatRange,
 ): number[] {
   if (cues.length === 0) return [];
   const toFrame = (ms: number) => speech.offset + (ms / 1000) * fps;
@@ -95,7 +99,7 @@ export function beatFrames(
   }
 
   // Elemen pertama tidak menunggu terlalu lama agar layar tidak kosong setelah transisi.
-  frames[0] = Math.min(frames[0], start + fps * 0.8);
+  if (!range?.waitForCue) frames[0] = Math.min(frames[0], start + fps * 0.8);
 
   // Berurutan, tidak menumpuk, dan tetap di dalam adegan.
   const last = Math.max(4, durationInFrames - 12);
@@ -107,7 +111,7 @@ export function beatFrames(
   });
 }
 
-export function useBeats(cues: Cue[], range?: { start?: number; end?: number }) {
+export function useBeats(cues: Cue[], range?: BeatRange) {
   const speech = useContext(SceneSpeechContext);
   const { fps, durationInFrames } = useVideoConfig();
   return beatFrames(speech, cues, fps, durationInFrames, range);

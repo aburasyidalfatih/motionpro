@@ -8,6 +8,10 @@ import type { HistoryVideoProps, SceneProps } from "./types";
 
 // Lebih dari ini tanpa elemen baru mulai terasa lambat bagi penonton YouTube.
 const MAX_STILL_SECONDS = 5;
+// Gambar (lukisan, foto, ilustrasi) tetap bergerak karena kamera, tetapi lebih
+// dari ini tanpa perpindahan ke subjek baru terasa seperti slide.
+const MAX_IMAGE_SECONDS = 8;
+const IMAGE_TYPES = new Set(["painting", "archival_photo", "illustration"]);
 
 export type PacingIssue = { scene: number; message: string };
 
@@ -38,9 +42,41 @@ function elementCues(scene: SceneProps): Cue[] {
   }
 }
 
-// Adegan yang terus bergerak sendiri (kutipan terbuka kata demi kata, gambar
-// dengan ken-burns dan partikel, footage) tidak diperiksa jedanya.
+// Adegan yang terus bergerak sendiri (kutipan terbuka kata demi kata, footage)
+// tidak diperiksa jedanya; gambar diperiksa terpisah (imageIssue).
 const CONTINUOUS = new Set(["quote", "painting", "archival_photo", "footage", "illustration", "title"]);
+
+const longestGap = (moments: number[]) => {
+  const sorted = [...moments].sort((a, b) => a - b);
+  return Math.max(...sorted.slice(1).map((m, k) => m - sorted[k]));
+};
+
+// Gambar: momen kamera berpindah adalah saat tiba di fokus utama dan saat tiap
+// subjek disebut (sama dengan PhotoLayer di photo.tsx).
+function imageIssue(scene: SceneProps, frames: number, lead: number): string | null {
+  const asset = scene.asset;
+  if (!asset || asset.kind !== "IMAGE" || !IMAGE_TYPES.has(scene.visualType)) return null;
+  const subjects = asset.subjects ?? [];
+  const total = frames + lead;
+  if (!asset.focus && subjects.length === 0) {
+    return total / FPS > MAX_IMAGE_SECONDS
+      ? `gambar tanpa analisis tampil ${Math.round(total / FPS)} detik; pecah adegan atau pilih ulang aset agar kamera punya fokus`
+      : null;
+  }
+  const beats = beatFrames(
+    { words: scene.words, offset: lead },
+    subjects.map((s): Cue => [s.cue, s.label]),
+    FPS,
+    total,
+    { waitForCue: true },
+  );
+  const moments = [lead, ...beats, total];
+  if (asset.focus) moments.push(Math.max(30, Math.min(total * 0.45, (beats[0] ?? Infinity) - 10)));
+  const longest = longestGap(moments);
+  return longest / FPS > MAX_IMAGE_SECONDS
+    ? `${Math.round(longest / FPS)} detik gambar tanpa sorotan baru; pecah adegan atau pilih gambar dengan lebih banyak detail`
+    : null;
+}
 
 export function pacingIssues(props: HistoryVideoProps): PacingIssue[] {
   const issues: PacingIssue[] = [];
@@ -51,8 +87,7 @@ export function pacingIssues(props: HistoryVideoProps): PacingIssue[] {
     const lead = i === 0 ? 0 : CROSSFADE_FRAMES;
     if (!CONTINUOUS.has(scene.visualType)) {
       const beats = beatFrames({ words: scene.words, offset: lead }, elementCues(scene), FPS, frames + lead);
-      const moments = [lead, ...beats, frames + lead].sort((a, b) => a - b);
-      const longest = Math.max(...moments.slice(1).map((m, k) => m - moments[k]));
+      const longest = longestGap([lead, ...beats, frames + lead]);
       if (longest / FPS > MAX_STILL_SECONDS) {
         issues.push({
           scene: i,
@@ -60,6 +95,8 @@ export function pacingIssues(props: HistoryVideoProps): PacingIssue[] {
         });
       }
     }
+    const image = imageIssue(scene, frames, lead);
+    if (image) issues.push({ scene: i, message: image });
     if (i >= 2 && scene.visualType !== "title") {
       const same = props.scenes.slice(i - 2, i + 1).every((s) => s.visualType === scene.visualType);
       if (same) issues.push({ scene: i, message: `tipe visual yang sama 3 kali berturut-turut (${scene.visualType})` });

@@ -74,11 +74,13 @@ Tanpa API key, isi `AI_PROVIDER=fake` di `.env` untuk menguji alur aplikasi deng
 - **Aset:** Wikimedia Commons dipakai tanpa API key. Untuk footage video, isi `PEXELS_API_KEY` (gratis di https://www.pexels.com/api). Hanya lisensi domain publik, CC0, CC BY, CC BY-SA, dan Pexels License yang dipakai.
 - **Voice over:** memakai `GEMINI_API_KEY` yang sama, model default `gemini-3.8-flash-tts` (ganti lewat `GEMINI_TTS_MODEL`). Suara dan gaya bicara diatur per proyek di tab **Audio**.
 - **Musik dan efek suara:** isi folder `library/` sendiri; lihat [library/README.md](library/README.md).
+- **Gemini vision untuk aset:** kandidat dinilai dari gambar kecilnya, bukan hanya judul (era, ketajaman, watermark, kolase, benda modern). Gambar terpilih (juga unggahan sendiri) dianalisis: subjek utama untuk kamera, 1–3 subjek yang disebut narasi untuk disorot, hitam-putih atau berwarna, dan tulisan/watermark yang mengganggu. Hasilnya tampil sebagai kotak di atas pratinjau Storyboard. `ASSET_VISION=off` menilai kandidat dari judul saja.
 - Semua file (aset, audio, unggahan) disimpan di `STORAGE_DIR` (default `./storage`).
 
 ## Render (Fase 3)
 
 - **Finishing:** butiran film, grading warna, vignette, light leak di kartu judul dan bab (`@remotion/effects`), dan motion blur saat transisi (`@remotion/motion-blur`, hanya saat render). Audio akhir dinormalkan ke -14 LUFS, standar YouTube. Pilih **1440p** di tab Render agar YouTube memakai codec yang lebih tajam. Video dengan kartu bab mendapat daftar **chapter YouTube** di galeri, siap disalin ke deskripsi.
+- **Gambar seperti dokumenter:** kamera mulai lebar, mendekati subjek utama, lalu berpindah ke tiap subjek tepat saat narator menyebutnya; subjek disorot (bagian lain diredupkan, lingkaran emas, label). Tampilan era menyatukan semua sumber: foto hitam-putih dan footage sebelum 1950 tampil sepia dengan goresan, debu, dan goyangan film; foto berwarna dan footage modern diredam warnanya; lukisan dan ilustrasi hangat dengan partikel. Catatan ritme menandai gambar yang terlalu lama tanpa sorotan baru.
 - **Peta:** globe 3D pembuka saat lokasi berpindah jauh, negara masa kini disorot dengan warna pihak, simbol satuan militer (MIL-STD-2525, `milsymbol`) yang bergerak mengikuti panah, lokasi bentrokan, dan garis depan.
 - **Ilustrasi AI:** adegan `illustration` (cold open, klimaks) dibuat Gemini (`GEMINI_IMAGE_MODEL`) di tahap aset; prompt bisa diedit dan gambar dibuat ulang di Storyboard. Pada gaya arsip, kartu profil tokoh memakai potret dari Wikimedia Commons.
 - **Suara:** suara latar per suasana (`library/ambience`), riser menjelang kartu bab, dan narator diolah seperti suara siaran (high-pass dan kompresor).

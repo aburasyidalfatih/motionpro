@@ -35,7 +35,8 @@ import {
   type TransitionKind,
 } from "./timing";
 import type { HistoryVideoProps, SceneProps } from "./types";
-import { CinematicParticles, FallbackLayer, FootageLayer, ImageLayer, Vignette } from "./visuals";
+import { FilmDamage, LOOK_FILTERS, lookFor, PhotoLayer } from "./photo";
+import { CinematicParticles, FallbackLayer, FootageLayer, Vignette } from "./visuals";
 
 const MUSIC_VOLUME = 0.22;
 const MUSIC_DUCKED = 0.07;
@@ -110,6 +111,7 @@ function SceneVisual({
   transition,
   graphicStyle,
   mapIntro,
+  eraYear,
 }: {
   scene: SceneProps;
   index: number;
@@ -118,6 +120,7 @@ function SceneVisual({
   transition: TransitionKind | null;
   graphicStyle: boolean;
   mapIntro: boolean;
+  eraYear: number | null;
 }) {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
@@ -131,11 +134,18 @@ function SceneVisual({
   const drift = interpolate(frame, [0, durationInFrames], [1, 1.045]);
 
   // Peta menggambar latarnya sendiri; tipe grafis lain di atas latar navy.
+  // Foto, lukisan, dan footage diberi tampilan era (lihat photo.tsx).
+  const look = !graphic && scene.asset ? lookFor(scene.visualType, scene.asset, eraYear) : null;
   let background;
-  if (graphic) background = scene.visualType === "map" ? null : <Backdrop />;
-  else if (scene.asset?.kind === "VIDEO") background = <FootageLayer asset={scene.asset} />;
-  else if (scene.asset) background = <ImageLayer asset={scene.asset} variant={index} />;
-  else background = graphicStyle ? <Backdrop /> : <FallbackLayer />;
+  if (graphic) {
+    background = scene.visualType === "map" ? null : <Backdrop />;
+  } else if (scene.asset?.kind === "VIDEO") {
+    background = <FootageLayer asset={scene.asset} filter={look ? LOOK_FILTERS[look] : undefined} />;
+  } else if (scene.asset && look) {
+    background = <PhotoLayer asset={scene.asset} variant={index} look={look} />;
+  } else {
+    background = graphicStyle ? <Backdrop /> : <FallbackLayer />;
+  }
   const photographic = !graphic && Boolean(scene.asset);
 
   let overlay = null;
@@ -152,10 +162,9 @@ function SceneVisual({
   return (
     <AbsoluteFill style={{ overflow: "hidden", ...transitionStyle(transition, p) }}>
       {background}
+      {look === "archival" && <FilmDamage seed={scene.id} />}
       {photographic && <Vignette />}
-      {photographic && (scene.visualType === "illustration" || scene.visualType === "painting") && (
-        <CinematicParticles mood={scene.mood} seed={scene.id} />
-      )}
+      {look === "painting" && <CinematicParticles mood={scene.mood} seed={scene.id} />}
       {graphic && (
         <AbsoluteFill style={scene.visualType === "map" ? undefined : { transform: `scale(${drift})` }}>
           {graphic.layer}
@@ -316,6 +325,7 @@ export function HistoryVideo(props: HistoryVideoProps) {
                     transition={transition}
                     graphicStyle={props.style === "GRAPHIC"}
                     mapIntro={intros[i]}
+                    eraYear={props.eraYear}
                   />
                 </TransitionBlur>
               </SceneSpeechContext.Provider>

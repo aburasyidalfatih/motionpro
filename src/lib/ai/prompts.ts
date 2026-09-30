@@ -294,11 +294,16 @@ export function rankAssetsPrompt(p: ProjectBrief, scenes: RankingScene[]) {
       return `Adegan ${i}: (${scene.visualType}) ${scene.narration}\n${candidates || "  (tidak ada kandidat)"}`;
     })
     .join("\n\n");
-  return `Pilih aset visual untuk video sejarah militer dan geopolitik "${p.topic}".
-Untuk tiap adegan, sebutkan nomor kandidat yang cocok dengan narasi dan era/tempatnya, paling cocok dulu.
-Buang kandidat yang jelas tidak relevan: tulisan atau grafis modern, benda atau orang masa kini, tempat atau era
-yang salah (misalnya kuil Jepang untuk Majapahit). Untuk adegan suasana (footage), pemandangan alam atau laut yang
-sesuai boleh dipakai. Bila tidak ada yang cocok, kosongkan daftarnya. Sertakan semua adegan.
+  return `Pilih aset visual untuk video dokumenter sejarah militer dan geopolitik "${p.topic}" yang harus terlihat
+profesional, bukan asal comot. Untuk tiap adegan, sebutkan nomor kandidat yang cocok, paling cocok dulu.
+Bila gambar kecil kandidat disertakan, nilai dari ISI gambarnya, bukan hanya judulnya:
+- cocok dengan narasi, era, dan tempatnya (foto arsip harus benar-benar dari era itu; lukisan harus lukisan);
+- tajam dan jelas subjeknya; komposisi yang layak tampil satu layar penuh;
+- buang yang ada watermark, tulisan atau keterangan besar, bingkai museum, kolase, peta modern, diagram, scan halaman
+  buku, benda atau orang masa kini, dan tempat atau era yang salah (misalnya kuil Jepang untuk Majapahit);
+- untuk footage suasana, pemandangan alam, laut, atau reruntuhan yang sesuai boleh dipakai, tetapi buang yang jelas
+  modern (mobil, gedung kaca, orang berpakaian masa kini).
+Bila tidak ada yang layak, kosongkan daftarnya. Sertakan semua adegan.
 
 ${list}`;
 }
@@ -312,3 +317,13 @@ Periksa setiap frame dan laporkan HANYA masalah yang benar-benar terlihat:
 - visual yang jelas tidak cocok dengan narasinya (misalnya peta lokasi lain, angka berbeda).
 Subtitle di bagian bawah adalah bagian normal video. Jangan melaporkan selera gaya. Bila frame baik, jangan
 disebut. Beri saran perbaikan yang bisa dilakukan di editor adegan (ubah teks layar, pindah tipe visual, pecah adegan).`;
+
+export const ANALYZE_IMAGE_PROMPT = `Kamu sinematografer video dokumenter sejarah. Analisis gambar ini untuk satu adegan.
+- focus: kotak subjek utama yang paling menarik (tokoh, kapal, pasukan, bangunan), tempat kamera perlahan mendekat.
+- subjects: 0–3 subjek yang JELAS terlihat di gambar DAN disebut dalam narasi, untuk diberi sorotan saat disebut.
+  cue diambil PERSIS dari narasi. Jangan menebak identitas orang yang tidak jelas; lebih baik daftar kosong
+  daripada sorotan yang salah. Kotak harus rapat mengelilingi subjek. Urutkan sesuai urutan disebut di narasi.
+  Narasi panjang (lebih dari 25 kata) butuh 2–3 subjek agar kamera berpindah dan gambar tidak terasa seperti
+  slide: cari detail yang disebut (tokoh, senjata, bendera, kapal, bangunan, peta di dinding).
+- monochrome: gambar hitam-putih atau sepia.
+- distracting: ada tulisan, watermark, bingkai, atau keterangan yang mengganggu.`;

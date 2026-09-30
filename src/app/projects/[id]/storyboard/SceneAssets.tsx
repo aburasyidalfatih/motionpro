@@ -1,6 +1,7 @@
 import type { Asset, Scene, SceneAsset } from "@/generated/prisma/client";
 import { SubmitButton } from "@/components/SubmitButton";
 import type { GraphicData } from "@/lib/ai/schemas";
+import type { Box, ImageAnalysis } from "@/lib/assets/analyze";
 import { visualTypeLabel } from "@/lib/labels";
 import { fileUrl } from "@/lib/storage";
 import { searchSceneAssets, selectAsset } from "./actions";
@@ -21,16 +22,58 @@ function Thumb({ asset, className }: { asset: Asset; className: string }) {
   return <img src={src} alt={asset.title ?? ""} loading="lazy" className={`${className} object-cover`} />;
 }
 
-export function SceneAssets({ scene, index, busy }: { scene: SceneWithAssets; index: number; busy: boolean }) {
+// Hasil analisis Gemini vision di atas pratinjau: kotak putus-putus untuk fokus
+// kamera, kotak emas untuk subjek yang disorot saat disebut narasi. Pratinjau
+// memakai object-contain, jadi kotak disesuaikan dengan area gambar di 16:9.
+function AnalysisOverlay({ asset, analysis }: { asset: Asset; analysis: ImageAnalysis }) {
+  if (!asset.width || !asset.height) return null;
+  const a = asset.width / asset.height;
+  const c = 16 / 9;
+  const area = a >= c ? { x: 0, y: (1 - c / a) / 2, w: 1, h: c / a } : { x: (1 - a / c) / 2, y: 0, w: a / c, h: 1 };
+  const style = (b: Box) => ({
+    left: `${(area.x + b.x * area.w) * 100}%`,
+    top: `${(area.y + b.y * area.h) * 100}%`,
+    width: `${b.w * area.w * 100}%`,
+    height: `${b.h * area.h * 100}%`,
+  });
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      {analysis.focus && <div className="absolute border border-dashed border-white/70" style={style(analysis.focus)} />}
+      {analysis.subjects.map((s, i) => (
+        <div key={i} className="absolute border-2 border-amber-400" style={style(s.box)}>
+          <span className="absolute -top-4 left-0 bg-amber-400 px-1 text-[10px] leading-4 font-semibold whitespace-nowrap text-black">
+            {i + 1}. {s.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function SceneAssets({
+  scene,
+  index,
+  busy,
+  sceneJob,
+}: {
+  scene: SceneWithAssets;
+  index: number;
+  busy: boolean;
+  // Ada job adegan ini yang masih berjalan (unduh, analisis, cari ulang).
+  sceneJob: boolean;
+}) {
   const links = [...scene.assets].sort((a, b) => a.rank - b.rank);
-  const selected = links.find((l) => l.selected)?.asset;
+  const selectedLink = links.find((l) => l.selected);
+  const selected = selectedLink?.asset;
+  const analysis =
+    selected?.kind === "IMAGE" && selectedLink?.analysis ? (selectedLink.analysis as ImageAnalysis) : null;
   const illustration = scene.visualType === "illustration";
   const prompt = ((scene.graphicData ?? {}) as GraphicData).illustration?.prompt ?? "";
 
   return (
     <li id={`adegan-${index + 1}`} className="grid gap-4 rounded-lg border border-zinc-200 p-4 md:grid-cols-[320px_1fr] dark:border-zinc-800">
       <div className="space-y-2">
-        <div className="aspect-video overflow-hidden rounded-md bg-zinc-900">
+        <div className="relative aspect-video overflow-hidden rounded-md bg-zinc-900">
           {selected ? (
             selected.kind === "VIDEO" && selected.localPath ? (
               <video
@@ -41,6 +84,12 @@ export function SceneAssets({ scene, index, busy }: { scene: SceneWithAssets; in
                 preload="none"
                 className="h-full w-full object-cover"
               />
+            ) : analysis ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageSrc(selected) ?? ""} alt={selected.title ?? ""} className="h-full w-full object-contain" />
+                <AnalysisOverlay asset={selected} analysis={analysis} />
+              </>
             ) : (
               <Thumb asset={selected} className="h-full w-full" />
             )
@@ -63,6 +112,22 @@ export function SceneAssets({ scene, index, busy }: { scene: SceneWithAssets; in
             {selected.kind === "VIDEO" && " · video"}
             {!selected.localPath && " · sedang diunduh"}
           </p>
+        )}
+        {analysis && (
+          <p className="text-xs text-zinc-500">
+            Kamera mendekat ke kotak putus-putus
+            {analysis.subjects.length > 0 &&
+              `, lalu menyorot ${analysis.subjects.map((s) => `${s.label} (saat "${s.cue}")`).join(", ")}`}
+            .{analysis.monochrome && " Foto hitam-putih: tampil sebagai arsip film lama."}
+          </p>
+        )}
+        {analysis?.distracting && (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Gambar ini memuat tulisan, watermark, atau bingkai yang mengganggu. Pertimbangkan kandidat lain.
+          </p>
+        )}
+        {selected?.kind === "IMAGE" && !analysis && sceneJob && (
+          <p className="text-xs text-zinc-500">Sedang diunduh dan dianalisis...</p>
         )}
       </div>
 

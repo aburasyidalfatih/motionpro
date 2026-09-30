@@ -1,4 +1,5 @@
 import type { Asset, Project, Scene, SceneAsset, Voiceover } from "@/generated/prisma/client";
+import type { ImageAnalysis } from "@/lib/assets/analyze";
 import { ambiencePlan, libraryUrl, listAmbience, listMusic, listSfx, musicPlan } from "@/lib/library";
 import { fileUrl } from "@/lib/storage";
 import type { GraphicData, HistoryVideoProps, WordTiming } from "@/remotion/history/types";
@@ -31,6 +32,20 @@ async function pickSfx(urls: UrlResolver) {
   return { whoosh: all("whoosh"), impact: all("impact"), pop: all("pop"), paper: all("paper"), riser: all("riser") };
 }
 
+// Tahun paling awal yang disebut di topik atau judul, misalnya 1825 dari
+// "Perang Diponegoro 1825–1830"; menentukan tampilan era footage.
+function eraYear(text: string) {
+  const years = [...text.matchAll(/\b(1[0-9]{3}|20[0-9]{2})\b/g)].map((m) => Number(m[1]));
+  return years.length ? Math.min(...years) : null;
+}
+
+// Hasil analisis Gemini vision atas gambar terpilih (lib/assets/analyze.ts).
+function analysisProps(value: unknown) {
+  const analysis = value as ImageAnalysis | null | undefined;
+  if (!analysis) return {};
+  return { focus: analysis.focus, subjects: analysis.subjects, monochrome: analysis.monochrome };
+}
+
 // Data lengkap template video sejarah untuk satu proyek.
 export async function buildVideoProps(
   project: ProjectForVideo,
@@ -41,6 +56,7 @@ export async function buildVideoProps(
     style: project.style,
     title: project.scenes.find((s) => s.visualType === "title")?.onScreenText || project.topic,
     subtitles: options.subtitles,
+    eraYear: eraYear(`${project.topic} ${project.scenes.find((s) => s.visualType === "title")?.onScreenText ?? ""}`),
     finishing: options.finishing ?? true,
     motionBlur: options.motionBlur ?? false,
     endScreen: options.endScreen ?? false,
@@ -74,6 +90,7 @@ export async function buildVideoProps(
               width: asset.width,
               height: asset.height,
               durationMs: asset.durationMs,
+              ...analysisProps(scene.assets[0]?.analysis),
             }
           : null,
         graphic,

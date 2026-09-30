@@ -66,12 +66,20 @@ export type GraphicData = {
   profile?: Profile;
 };
 
+// Kotak dalam koordinat gambar 0–1 (x, y dari kiri atas).
+export type Box = { x: number; y: number; w: number; h: number };
+
 export type SceneAssetProps = {
   src: string;
   kind: "IMAGE" | "VIDEO";
   width: number | null;
   height: number | null;
   durationMs: number | null;
+  // Dari analisis Gemini vision (lib/assets/analyze.ts): subjek utama yang
+  // didekati kamera, subjek yang disorot saat disebut narasi, dan monokrom.
+  focus?: Box | null;
+  subjects?: { label: string; cue: string; box: Box }[];
+  monochrome?: boolean;
 };
 
 export type SceneProps = {
@@ -97,6 +105,8 @@ export type HistoryVideoProps = {
   // Suara latar suasana (angin, pertempuran di kejauhan, hujan) per rentang adegan.
   ambience: { src: string; fromScene: number; toScene: number }[];
   subtitles: boolean;
+  // Tahun awal cerita (dari topik) untuk tampilan era footage; null bila tidak diketahui.
+  eraYear: number | null;
   // Butiran film, grading, dan light leak (lihat finishing.tsx).
   finishing: boolean;
   // Motion blur saat transisi; menambah waktu render, hanya aktif saat render

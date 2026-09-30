@@ -27,6 +27,7 @@ export const demoProps: HistoryVideoProps = {
   title: "Pertempuran Surabaya",
   style: "GRAPHIC",
   subtitles: true,
+  eraYear: 1945,
   finishing: true,
   motionBlur: true,
   endScreen: false,

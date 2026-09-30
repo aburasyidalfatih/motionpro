@@ -204,6 +204,9 @@ model SceneAsset {
   asset    Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
   rank     Int     @default(0)
   selected Boolean @default(false)
+  // Analisis Gemini vision atas gambar ini untuk adegan ini: fokus kamera,
+  // subjek yang disorot saat disebut narasi, monokrom (lib/assets/analyze.ts).
+  analysis Json?
 
   @@id([sceneId, assetId])
 }

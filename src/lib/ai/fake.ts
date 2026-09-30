@@ -103,6 +103,36 @@ export function createFakeAI(): ScriptAI {
       return { issues: [], scenes };
     },
 
+    // Mode tiruan: fokus di tengah, satu sorotan dari kata bernama pertama di narasi.
+    async analyzeImage(_project, { narration, visualType }) {
+      await pause(100);
+      // Nama (kata berhuruf kapital selain kata pertama) sebagai subjek, sampai dua;
+      // tanpa nama, kata di sepertiga dan dua pertiga narasi agar sorotan tetap teruji.
+      const words = narration.split(/\s+/).map((w) => w.replace(/[^\p{L}]/gu, ""));
+      const capitalized = [...new Set(words.slice(1).filter((w) => /^\p{Lu}\p{Ll}{3,}/u.test(w)))];
+      const names = (
+        capitalized.length
+          ? capitalized
+          : [words[Math.floor(words.length / 3)], words[Math.floor((words.length * 2) / 3)]]
+      )
+        .filter((w) => w && w.length >= 4)
+        .slice(0, 2);
+      const boxes: [number, number, number, number][] = [
+        [300, 150, 650, 450],
+        [250, 580, 600, 880],
+      ];
+      return {
+        focus: [250, 300, 750, 700],
+        subjects: names.map((name, i) => ({
+          label: capitalized.length ? name : `Subjek ${i + 1}`,
+          cue: name,
+          box_2d: boxes[i],
+        })),
+        monochrome: visualType === "archival_photo",
+        distracting: false,
+      };
+    },
+
     // Mode tiruan: satu catatan contoh pada frame pertama.
     async reviewFrames(_project, frames) {
       await pause(200);

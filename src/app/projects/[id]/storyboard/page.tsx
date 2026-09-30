@@ -38,6 +38,7 @@ export default async function StoryboardPage({ params }: PageProps<"/projects/[i
 
 function StoryboardBody({ project }: { project: ProjectData }) {
   const busy = project.jobs.some((j) => !isSceneJob(j.input));
+  const sceneJobs = new Set(project.jobs.map((j) => (j.input as { sceneId?: string } | null)?.sceneId).filter(Boolean));
   const scenes = project.scenes;
 
   if (scenes.length === 0) {
@@ -130,7 +131,7 @@ function StoryboardBody({ project }: { project: ProjectData }) {
 
       <ol className="space-y-4">
         {assetScenes.map(({ scene, index }) => (
-          <SceneAssets key={scene.id} scene={scene} index={index} busy={busy} />
+          <SceneAssets key={scene.id} scene={scene} index={index} busy={busy} sceneJob={sceneJobs.has(scene.id)} />
         ))}
       </ol>
     </div>

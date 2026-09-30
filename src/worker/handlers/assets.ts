@@ -6,6 +6,7 @@ import { generateIllustration, imageModel } from "@/lib/ai/image";
 import { thirdPartyVisualTypes, type GraphicData } from "@/lib/ai/schemas";
 import type { ProjectBrief } from "@/lib/ai/types";
 import { findCandidates } from "@/lib/assets";
+import { analyzeSelected, fetchThumbnail } from "@/lib/assets/analyze";
 import { ensureLocal, processImage } from "@/lib/assets/download";
 import type { AssetCandidate } from "@/lib/assets/types";
 import { mapLimit } from "@/lib/async";
@@ -19,8 +20,12 @@ import type { JobHandler } from "../types";
 // Kandidat yang dinilai tidak relevan tetap disimpan (bisa dipilih manual),
 // tapi diurutkan di belakang dan tidak dipilih otomatis.
 const IRRELEVANT_RANK = 100;
-// Jumlah adegan per panggilan Gemini untuk menilai relevansi.
+// Jumlah adegan per panggilan Gemini untuk menilai relevansi: lebih sedikit
+// bila gambar kecil kandidat ikut dikirim (Gemini vision).
 const RANKING_BATCH = 15;
+const VISION_BATCH = 3;
+// Kandidat per adegan yang dinilai dari gambarnya; ASSET_VISION=off untuk menilai dari judul saja.
+const visionEnabled = () => process.env.AI_PROVIDER !== "fake" && process.env.ASSET_VISION !== "off";
 
 type Ranked = { candidate: AssetCandidate; rank: number };
 
@@ -28,19 +33,26 @@ type Ranked = { candidate: AssetCandidate; rank: number };
 // gagal (kuota, jaringan), urutan hasil pencarian dipakai apa adanya.
 async function rankCandidates(project: ProjectBrief, items: { scene: Scene; candidates: AssetCandidate[] }[]) {
   const ranked = new Map<string, Ranked[]>();
-  for (let start = 0; start < items.length; start += RANKING_BATCH) {
-    const batch = items.slice(start, start + RANKING_BATCH).filter((i) => i.candidates.length > 0);
+  const vision = visionEnabled();
+  const size = vision ? VISION_BATCH : RANKING_BATCH;
+  for (let start = 0; start < items.length; start += size) {
+    const batch = items.slice(start, start + size).filter((i) => i.candidates.length > 0);
     if (batch.length === 0) continue;
     let relevantByScene: Map<number, number[]> | undefined;
     try {
-      const result = await scriptAI().rankAssets(
-        project,
-        batch.map(({ scene, candidates }) => ({
+      const scenes = await Promise.all(
+        batch.map(async ({ scene, candidates }) => ({
           narration: scene.narration,
           visualType: scene.visualType,
-          candidates: candidates.map((c) => ({ title: c.title, provider: c.provider, kind: c.kind })),
+          candidates: await mapLimit(candidates, 4, async (c) => ({
+            title: c.title,
+            provider: c.provider,
+            kind: c.kind,
+            image: vision ? await fetchThumbnail(c.previewUrl) : undefined,
+          })),
         })),
       );
+      const result = await scriptAI().rankAssets(project, scenes);
       relevantByScene = new Map(result.scenes.map((s) => [s.scene, s.relevant]));
     } catch (err) {
       console.warn(`[aset] penilaian relevansi dilewati: ${(err as Error).message}`);
@@ -134,6 +146,7 @@ async function illustrateScene(scene: Scene, project: Project) {
     db.sceneAsset.updateMany({ where: { sceneId: scene.id }, data: { selected: false, rank: { increment: 1 } } }),
     db.sceneAsset.create({ data: { sceneId: scene.id, assetId: asset.id, rank: 0, selected: true } }),
   ]);
+  await analyzeSelected(scene.id, toProjectBrief(project));
 }
 
 // F-13, F-14, F-15, F-17: pencarian, penilaian relevansi, cari ulang, dan unduhan.
@@ -151,8 +164,10 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
     if (!scene) throw new UnrecoverableError("Adegan tidak ditemukan");
 
     if (input.downloadOnly) {
+      // Pilihan manual atau unggahan: unduh bila perlu, lalu analisis untuk kamera dan sorotan.
       const selected = scene.assets.find((a) => a.selected);
       if (selected) await ensureLocal(selected.asset);
+      await analyzeSelected(scene.id, brief);
     } else if (scene.visualType === "illustration") {
       // "Buat ulang gambar": prompt baru sudah disimpan ke adegan oleh halaman storyboard.
       await illustrateScene(scene, project);
@@ -166,7 +181,9 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
       const ranked = await rankCandidates(brief, [{ scene, candidates }]);
       await db.sceneAsset.deleteMany({ where: { sceneId: scene.id, selected: false } });
       await attachCandidates(scene.id, ranked.get(scene.id) ?? []);
-      if (!scene.assets.some((a) => a.selected)) await selectFirstDownloadable(scene.id);
+      if (!scene.assets.some((a) => a.selected) && (await selectFirstDownloadable(scene.id))) {
+        await analyzeSelected(scene.id, brief);
+      }
     }
     await recomputeStatus(project.id);
     return { sceneId: scene.id };
@@ -238,7 +255,10 @@ export const assets: JobHandler = async ({ run, setProgress }) => {
   await mapLimit(found, 3, async ({ scene }) => {
     await attachCandidates(scene.id, ranked.get(scene.id) ?? []);
     const hasSelection = scene.assets.length > 0;
-    if (!hasSelection && !(await selectFirstDownloadable(scene.id))) withoutAsset++;
+    if (!hasSelection) {
+      if (await selectFirstDownloadable(scene.id)) await analyzeSelected(scene.id, brief);
+      else withoutAsset++;
+    }
     saved++;
     await setProgress(60 + (saved / found.length) * 40);
   });
